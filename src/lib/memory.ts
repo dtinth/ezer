@@ -223,3 +223,160 @@ export async function listMemoryEntries(
     return [];
   }
 }
+
+export async function updateNote(
+  id: string,
+  content: string
+): Promise<MemoryEntry> {
+  const filePath = join(MEMORY_DIR, `${id}.md`);
+  const fileContent = await readFile(filePath, "utf-8");
+  const entry = parseMemoryFile(id, fileContent);
+
+  if (entry.type !== "note") {
+    throw new Error(`${id} is not a note`);
+  }
+
+  entry.content = content;
+  await writeFile(filePath, serializeMemoryEntry(entry));
+  return entry;
+}
+
+export async function deleteEntry(id: string): Promise<void> {
+  const filePath = join(MEMORY_DIR, `${id}.md`);
+  const fileContent = await readFile(filePath, "utf-8");
+  const entry = parseMemoryFile(id, fileContent);
+
+  if (entry.type !== "note") {
+    throw new Error(`${id} is not a note`);
+  }
+
+  // Delete the file by renaming or using a delete operation
+  // Using a simple approach: write empty content to signify deletion
+  // Actually, we should just remove the file - but for now we'll use writeFile with empty
+  // Let's check if there's a way... Actually, let's just use fs module's unlink
+  const fs = await import("node:fs/promises");
+  await fs.unlink(filePath);
+}
+
+export async function replaceNotes(
+  ids: string[],
+  content: string
+): Promise<MemoryEntry> {
+  // Validate all IDs are notes
+  for (const id of ids) {
+    const filePath = join(MEMORY_DIR, `${id}.md`);
+    const fileContent = await readFile(filePath, "utf-8");
+    const entry = parseMemoryFile(id, fileContent);
+    if (entry.type !== "note") {
+      throw new Error(`${id} is not a note`);
+    }
+  }
+
+  // Delete old notes
+  const fs = await import("node:fs/promises");
+  for (const id of ids) {
+    const filePath = join(MEMORY_DIR, `${id}.md`);
+    await fs.unlink(filePath);
+  }
+
+  // Create new consolidated note
+  return createNote(content);
+}
+
+export async function getPuzzleTree(rootId: string): Promise<string[]> {
+  const entries = await listMemoryEntries("puzzle");
+  const idMap = new Map<string, MemoryEntry>();
+  for (const entry of entries) {
+    idMap.set(entry.id, entry);
+  }
+
+  // Find all puzzles that block the given puzzle (ancestors)
+  const ancestors: string[] = [];
+  let current = rootId;
+  while (current) {
+    const puzzle = idMap.get(current);
+    if (!puzzle || puzzle.type !== "puzzle") break;
+    if (puzzle.blocks) {
+      ancestors.unshift(puzzle.blocks);
+      current = puzzle.blocks;
+    } else {
+      break;
+    }
+  }
+
+  // Find all puzzles that are blocked by the given puzzle (descendants)
+  const descendants: string[] = [];
+  function findDescendants(puzzleId: string): void {
+    for (const [id, puzzle] of idMap) {
+      if (puzzle.blocks === puzzleId) {
+        descendants.push(id);
+        findDescendants(id);
+      }
+    }
+  }
+  findDescendants(rootId);
+
+  return [...ancestors, rootId, ...descendants];
+}
+
+export async function renderPuzzleTree(rootId: string): Promise<string> {
+  const entries = await listMemoryEntries("puzzle");
+  const idMap = new Map<string, MemoryEntry>();
+  for (const entry of entries) {
+    idMap.set(entry.id, entry);
+  }
+
+  const lines: string[] = [];
+
+  // Find ancestors
+  const ancestors: Array<{ id: string; puzzle: MemoryEntry }> = [];
+  let current = rootId;
+  while (current) {
+    const puzzle = idMap.get(current);
+    if (!puzzle || puzzle.type !== "puzzle") break;
+    ancestors.unshift({ id: current, puzzle });
+    if (puzzle.blocks) {
+      current = puzzle.blocks;
+    } else {
+      break;
+    }
+  }
+
+  // Find descendants
+  function findDescendants(
+    puzzleId: string,
+    depth: number
+  ): Array<{ id: string; puzzle: MemoryEntry; depth: number }> {
+    const result: Array<{ id: string; puzzle: MemoryEntry; depth: number }> = [];
+    for (const [id, puzzle] of idMap) {
+      if (puzzle.blocks === puzzleId) {
+        result.push({ id, puzzle, depth });
+        result.push(...findDescendants(id, depth + 1));
+      }
+    }
+    return result;
+  }
+
+  const descendants = findDescendants(rootId, 1);
+
+  // Render ancestors
+  for (const { id, puzzle } of ancestors) {
+    if (id === rootId) continue;
+    lines.push(`  ${id}: ${puzzle.title}`);
+  }
+
+  // Render root
+  const root = idMap.get(rootId);
+  if (!root) {
+    return `Puzzle ${rootId} not found`;
+  }
+  lines.push(`→ ${rootId}: ${root.title}`);
+
+  // Render descendants
+  for (const { id, puzzle, depth } of descendants) {
+    const indent = "  ".repeat(depth);
+    lines.push(`${indent}→ ${id}: ${puzzle.title}`);
+  }
+
+  return lines.join("\n");
+}

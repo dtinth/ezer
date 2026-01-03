@@ -2,7 +2,11 @@ import { defineCommand, runMain } from "citty";
 import {
   createNote,
   createPuzzle,
+  deleteEntry,
   listMemoryEntries,
+  renderPuzzleTree,
+  replaceNotes,
+  updateNote,
   updatePuzzleStatus,
 } from "./lib/memory.ts";
 
@@ -186,9 +190,20 @@ const main = defineCommand({
               required: true,
             },
           },
-          run({ args }) {
-            // TODO: Implement update
-            console.log(`TODO: Update note ${args["id"]} with: ${args["content"]}`);
+          async run({ args }) {
+            const id = args["id"];
+            const content = args["content"];
+            if (typeof id !== "string" || typeof content !== "string") {
+              console.error("Error: --id and --content are required");
+              process.exit(1);
+            }
+            try {
+              await updateNote(id, content);
+              console.log(`Updated ${id}`);
+            } catch (error) {
+              console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+              process.exit(1);
+            }
           },
         }),
         delete: defineCommand({
@@ -203,9 +218,19 @@ const main = defineCommand({
               required: true,
             },
           },
-          run({ args }) {
-            // TODO: Implement delete
-            console.log(`TODO: Delete note ${args["id"]}`);
+          async run({ args }) {
+            const id = args["id"];
+            if (typeof id !== "string") {
+              console.error("Error: --id is required");
+              process.exit(1);
+            }
+            try {
+              await deleteEntry(id);
+              console.log(`Deleted ${id}`);
+            } catch (error) {
+              console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+              process.exit(1);
+            }
           },
         }),
         replace: defineCommand({
@@ -225,9 +250,21 @@ const main = defineCommand({
               required: true,
             },
           },
-          run({ args }) {
-            // TODO: Implement replace
-            console.log(`TODO: Replace notes ${args["ids"]} with: ${args["content"]}`);
+          async run({ args }) {
+            const ids = args["ids"];
+            const content = args["content"];
+            if (typeof ids !== "string" || typeof content !== "string") {
+              console.error("Error: --ids and --content are required");
+              process.exit(1);
+            }
+            try {
+              const idList = ids.split(",").map((id) => id.trim());
+              const entry = await replaceNotes(idList, content);
+              console.log(`Created ${entry.id} (replaced ${idList.join(", ")})`);
+            } catch (error) {
+              console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+              process.exit(1);
+            }
           },
         }),
         list: defineCommand({
@@ -235,9 +272,15 @@ const main = defineCommand({
             name: "list",
             description: "List all notes",
           },
-          run() {
-            // TODO: Implement list
-            console.log("TODO: List all notes");
+          async run() {
+            const entries = await listMemoryEntries("note");
+            if (entries.length === 0) {
+              console.log("No notes.");
+              return;
+            }
+            for (const note of entries) {
+              console.log(`${note.id}: ${note.content}`);
+            }
           },
         }),
       },
@@ -342,14 +385,39 @@ const main = defineCommand({
               description: "Show only puzzles with unresolved deps",
             },
           },
-          run({ args }) {
-            // TODO: Implement puzzle list
+          async run({ args }) {
+            const entries = await listMemoryEntries("puzzle");
+            const puzzles = entries.filter((e) => e.status !== "closed");
+
+            // Build a set of open puzzle IDs that can be blocked by others
+            const openPuzzleIds = new Set(puzzles.map((p) => p.id));
+
+            // Determine which puzzles are ready (their blockers are closed/don't exist)
+            const readyPuzzles = puzzles.filter((puzzle) => {
+              if (!puzzle.blocks) return true; // No dependency
+              return !openPuzzleIds.has(puzzle.blocks);
+            });
+
+            const blockedPuzzles = puzzles.filter((puzzle) => {
+              if (!puzzle.blocks) return false;
+              return openPuzzleIds.has(puzzle.blocks);
+            });
+
+            let toShow = puzzles;
             if (args["ready"]) {
-              console.log("TODO: List ready puzzles");
+              toShow = readyPuzzles;
             } else if (args["blocked"]) {
-              console.log("TODO: List blocked puzzles");
-            } else {
-              console.log("TODO: List all puzzles");
+              toShow = blockedPuzzles;
+            }
+
+            if (toShow.length === 0) {
+              console.log("No puzzles.");
+              return;
+            }
+
+            for (const puzzle of toShow) {
+              const blocksInfo = puzzle.blocks ? ` (blocks ${puzzle.blocks})` : "";
+              console.log(`${puzzle.id}: ${puzzle.title}${blocksInfo}`);
             }
           },
         }),
@@ -365,9 +433,19 @@ const main = defineCommand({
               required: true,
             },
           },
-          run({ args }) {
-            // TODO: Implement puzzle tree
-            console.log(`TODO: Show tree for puzzle ${args["id"]}`);
+          async run({ args }) {
+            const id = args["id"];
+            if (typeof id !== "string") {
+              console.error("Error: --id is required");
+              process.exit(1);
+            }
+            try {
+              const tree = await renderPuzzleTree(id);
+              console.log(tree);
+            } catch (error) {
+              console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+              process.exit(1);
+            }
           },
         }),
       },
