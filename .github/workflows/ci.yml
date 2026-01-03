@@ -9,6 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: jdx/mise-action@v2
+      - run: mise install bun
+      - run: ln -sf "$PWD/bin/ezer" /usr/local/bin/ezer
       - run: bun install
       - run: bun run typecheck
+      - run: bun test
