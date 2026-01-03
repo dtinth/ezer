@@ -12,6 +12,7 @@ jobs:
       - uses: jdx/mise-action@v2.1.0
       - run: mise install bun
       - run: mkdir -p "$HOME/.local/bin"
+      - run: test -x "$GITHUB_WORKSPACE/bin/ezer"
       - run: ln -sf "$GITHUB_WORKSPACE/bin/ezer" "$HOME/.local/bin/ezer"
       - run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: bun install

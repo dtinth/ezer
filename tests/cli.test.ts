@@ -39,7 +39,7 @@ test("can create and list notes", async () => {
   expect(create.exitCode).toBe(0);
   expect(create.stderr).toBe("");
 
-  const match = create.stdout.match(/Created ([A-Za-z0-9_-]+)/);
+  const match = create.stdout.match(/Created ([a-z0-9]{2,}-[a-z2-7]{5})/);
   expect(match).not.toBeNull();
   const id = match?.[1];
   if (!id) {
