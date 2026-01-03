@@ -1,12 +1,40 @@
 import { defineCommand, runMain } from "citty";
+import { createNote, listMemoryEntries } from "./lib/memory.ts";
 
-const primingText = `=== EZER ===
+async function renderState(): Promise<string> {
+  const entries = await listMemoryEntries();
+
+  if (entries.length === 0) {
+    return "No memory entries yet.";
+  }
+
+  const notes = entries.filter((e) => e.type === "note");
+  // TODO: Add puzzles when implemented
+
+  const lines: string[] = [];
+
+  if (notes.length > 0) {
+    lines.push("### Notes");
+    for (const note of notes) {
+      lines.push(`- ${note.id}: ${note.content}`);
+    }
+  }
+
+  // TODO: Add puzzles section
+
+  return lines.join("\n");
+}
+
+async function getPrimingText(): Promise<string> {
+  const state = await renderState();
+
+  return `=== EZER ===
 I am ezer, a robot companion for AI agents. I help you maintain
 context and memory across sessions.
 
 ## Current State
 
-No memory entries yet. <!-- TODO: Show actual notes and puzzles here -->
+${state}
 
 ## Commands
 
@@ -54,6 +82,7 @@ Help improve ezer:
 4. Update or consolidate notes to keep memory focused
 5. You are the agent - ezer only stores and retrieves, you do the thinking
 `;
+}
 
 const main = defineCommand({
   meta: {
@@ -66,11 +95,11 @@ const main = defineCommand({
         name: "status",
         description: "Show current state without instructions",
       },
-      run() {
-        // TODO: Show actual notes and puzzles here
+      async run() {
+        const state = await renderState();
         console.log("=== EZER ===");
         console.log("");
-        console.log("No memory entries yet.");
+        console.log(state);
       },
     }),
     note: defineCommand({
@@ -91,8 +120,14 @@ const main = defineCommand({
               required: true,
             },
           },
-          run({ args }) {
-            console.log(`TODO: Create note with content: ${args["content"]}`);
+          async run({ args }) {
+            const content = args["content"];
+            if (typeof content !== "string") {
+              console.error("Error: --content is required");
+              process.exit(1);
+            }
+            const entry = await createNote(content);
+            console.log(`Created ${entry.id}`);
           },
         }),
         update: defineCommand({
@@ -113,6 +148,7 @@ const main = defineCommand({
             },
           },
           run({ args }) {
+            // TODO: Implement update
             console.log(`TODO: Update note ${args["id"]} with: ${args["content"]}`);
           },
         }),
@@ -129,6 +165,7 @@ const main = defineCommand({
             },
           },
           run({ args }) {
+            // TODO: Implement delete
             console.log(`TODO: Delete note ${args["id"]}`);
           },
         }),
@@ -150,6 +187,7 @@ const main = defineCommand({
             },
           },
           run({ args }) {
+            // TODO: Implement replace
             console.log(`TODO: Replace notes ${args["ids"]} with: ${args["content"]}`);
           },
         }),
@@ -159,6 +197,7 @@ const main = defineCommand({
             description: "List all notes",
           },
           run() {
+            // TODO: Implement list
             console.log("TODO: List all notes");
           },
         }),
@@ -191,6 +230,7 @@ const main = defineCommand({
             },
           },
           run({ args }) {
+            // TODO: Implement puzzle create
             console.log(`TODO: Create puzzle: ${args["title"]}`);
             if (args["description"]) {
               console.log(`  Description: ${args["description"]}`);
@@ -213,6 +253,7 @@ const main = defineCommand({
             },
           },
           run({ args }) {
+            // TODO: Implement puzzle close
             console.log(`TODO: Close puzzle ${args["id"]}`);
           },
         }),
@@ -229,6 +270,7 @@ const main = defineCommand({
             },
           },
           run({ args }) {
+            // TODO: Implement puzzle reopen
             console.log(`TODO: Reopen puzzle ${args["id"]}`);
           },
         }),
@@ -248,6 +290,7 @@ const main = defineCommand({
             },
           },
           run({ args }) {
+            // TODO: Implement puzzle list
             if (args["ready"]) {
               console.log("TODO: List ready puzzles");
             } else if (args["blocked"]) {
@@ -270,6 +313,7 @@ const main = defineCommand({
             },
           },
           run({ args }) {
+            // TODO: Implement puzzle tree
             console.log(`TODO: Show tree for puzzle ${args["id"]}`);
           },
         }),
@@ -294,6 +338,7 @@ const main = defineCommand({
             },
           },
           run({ args }) {
+            // TODO: Implement feedback create
             console.log(`TODO: Create feedback: ${args["content"]}`);
           },
         }),
@@ -305,7 +350,7 @@ const main = defineCommand({
 // If no subcommand provided, show priming text
 const args = process.argv.slice(2);
 if (args.length === 0 || args[0]?.startsWith("-")) {
-  console.log(primingText);
+  getPrimingText().then((text) => console.log(text));
 } else {
   runMain(main);
 }
