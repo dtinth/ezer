@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v2.1.0
       - run: mise install bun
       - run: mkdir -p "$HOME/.local/bin"
       - run: ln -sf "$PWD/bin/ezer" "$HOME/.local/bin/ezer"
