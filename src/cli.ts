@@ -1,5 +1,10 @@
 import { defineCommand, runMain } from "citty";
-import { createNote, listMemoryEntries } from "./lib/memory.ts";
+import {
+  createNote,
+  createPuzzle,
+  listMemoryEntries,
+  updatePuzzleStatus,
+} from "./lib/memory.ts";
 
 async function renderState(): Promise<string> {
   const entries = await listMemoryEntries();
@@ -9,18 +14,26 @@ async function renderState(): Promise<string> {
   }
 
   const notes = entries.filter((e) => e.type === "note");
-  // TODO: Add puzzles when implemented
+  const puzzles = entries.filter((e) => e.type === "puzzle");
+  const openPuzzles = puzzles.filter((p) => p.status === "open");
 
   const lines: string[] = [];
 
+  if (openPuzzles.length > 0) {
+    lines.push("### Open Puzzles");
+    for (const puzzle of openPuzzles) {
+      const blocksInfo = puzzle.blocks ? ` (blocks ${puzzle.blocks})` : "";
+      lines.push(`- ${puzzle.id}: ${puzzle.title}${blocksInfo}`);
+    }
+  }
+
   if (notes.length > 0) {
+    if (lines.length > 0) lines.push("");
     lines.push("### Notes");
     for (const note of notes) {
       lines.push(`- ${note.id}: ${note.content}`);
     }
   }
-
-  // TODO: Add puzzles section
 
   return lines.join("\n");
 }
@@ -52,8 +65,8 @@ Good notes: decisions made, patterns discovered, important file locations.
 ### Puzzles
 Mark unknowns you can't resolve now. Don't get stuck - note it and move on.
 
-  ezer puzzle create --title "..."              # create puzzle
-  ezer puzzle create --title "..." --dep ez-x   # create with dependency
+  ezer puzzle create --title "..."                  # create puzzle
+  ezer puzzle create --title "..." --blocks ez-x   # this puzzle blocks ez-x
   ezer puzzle close --id ez-xxxxx               # mark resolved
   ezer puzzle reopen --id ez-xxxxx              # reopen puzzle
   ezer puzzle list                              # list all puzzles
@@ -241,19 +254,23 @@ const main = defineCommand({
               type: "string",
               description: "Puzzle description",
             },
-            dep: {
+            blocks: {
               type: "string",
-              description: "ID of puzzle this depends on (blocks)",
+              description: "ID of puzzle that this new puzzle blocks",
             },
           },
-          run({ args }) {
-            // TODO: Implement puzzle create
-            console.log(`TODO: Create puzzle: ${args["title"]}`);
-            if (args["description"]) {
-              console.log(`  Description: ${args["description"]}`);
+          async run({ args }) {
+            const title = args["title"];
+            if (typeof title !== "string") {
+              console.error("Error: --title is required");
+              process.exit(1);
             }
-            if (args["dep"]) {
-              console.log(`  Depends on: ${args["dep"]}`);
+            const description = args["description"] as string | undefined;
+            const blocks = args["blocks"] as string | undefined;
+            const entry = await createPuzzle(title, description, blocks);
+            console.log(`Created ${entry.id}`);
+            if (blocks) {
+              console.log(`  Blocks: ${blocks}`);
             }
           },
         }),
@@ -269,9 +286,14 @@ const main = defineCommand({
               required: true,
             },
           },
-          run({ args }) {
-            // TODO: Implement puzzle close
-            console.log(`TODO: Close puzzle ${args["id"]}`);
+          async run({ args }) {
+            const id = args["id"];
+            if (typeof id !== "string") {
+              console.error("Error: --id is required");
+              process.exit(1);
+            }
+            await updatePuzzleStatus(id, "closed");
+            console.log(`Closed ${id}`);
           },
         }),
         reopen: defineCommand({
@@ -286,9 +308,14 @@ const main = defineCommand({
               required: true,
             },
           },
-          run({ args }) {
-            // TODO: Implement puzzle reopen
-            console.log(`TODO: Reopen puzzle ${args["id"]}`);
+          async run({ args }) {
+            const id = args["id"];
+            if (typeof id !== "string") {
+              console.error("Error: --id is required");
+              process.exit(1);
+            }
+            await updatePuzzleStatus(id, "open");
+            console.log(`Reopened ${id}`);
           },
         }),
         list: defineCommand({
