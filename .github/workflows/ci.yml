@@ -11,7 +11,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2
       - run: mise install bun
-      - run: mkdir -p "$HOME/.local/bin" && ln -sf "$PWD/bin/ezer" "$HOME/.local/bin/ezer" && echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: mkdir -p "$HOME/.local/bin"
+      - run: ln -sf "$PWD/bin/ezer" "$HOME/.local/bin/ezer"
+      - run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: bun install
       - run: bun run typecheck
       - run: bun test
