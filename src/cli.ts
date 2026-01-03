@@ -95,21 +95,30 @@ Help improve ezer:
 - Run verifiable outputs (tests, typecheck, build) before every commit
 - Avoid premature abstractions - only write code when it's actually needed
 
-### Use Puzzles to Break Down Work
-- When you hit an unknown or complexity, create a puzzle instead of getting stuck
-- Break large tasks into smaller puzzles with dependencies
-- Don't work on too many things at once - focus on one puzzle at a time
-- Close puzzles from the bottom up (resolve dependencies first)
-- Puzzles are for things you CAN'T solve now; notes are for things you LEARNED
+### Use Puzzles for Work
+- Puzzles represent work to be done - things you CAN'T solve now
+- Include acceptance criteria in the description so it's clear when done
+- Break large tasks into smaller puzzles with \`--blocks\` dependencies
+- Focus on one puzzle at a time; close from the bottom up (dependencies first)
+- When you hit an unknown or blocker, create a puzzle and move on
 
-### Leave Notes for Future Sessions
-- Document decisions and their rationale (why, not just what)
-- Record discoveries: patterns found, gotchas encountered, file locations
-- Update or consolidate notes to keep context focused and relevant
+### Use Notes for Knowledge
+- Notes capture what you LEARNED - decisions, discoveries, patterns
+- Document rationale (why, not just what)
+- Record gotchas, file locations, architectural insights
+- Update or consolidate notes to keep context focused
+
+### Reflect and Wrap Up
+- After completing a usable increment, reflect: add notes for learnings
+- When human says "reflect" or "wrap up", or session is ending:
+  - Create puzzles for any remaining/discovered work
+  - Add notes for important learnings from this session
+  - Close any puzzles you completed
+- Commit \`.ezer/\` changes so next session has context
 
 ### Remember
 - Run \`ezer\` at session start to load context
-- Commit \`.ezer/\` to git - this is how memory persists and syncs across branches
+- Commit \`.ezer/\` to git - this is how memory persists across sessions/branches
 - You are the agent - ezer only stores and retrieves, you do the thinking
 `;
 }
