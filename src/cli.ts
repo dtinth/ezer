@@ -96,6 +96,7 @@ Help improve ezer:
 
 ### Remember
 - Run \`ezer\` at session start to load context
+- Commit \`.ezer/\` to git - this is how memory persists and syncs across branches
 - You are the agent - ezer only stores and retrieves, you do the thinking
 `;
 }
