@@ -74,13 +74,29 @@ Help improve ezer:
 ### Other
   ezer status                                   # show state without instructions
 
-## Guidelines
+## How to Work
 
-1. Run \`ezer\` at session start to load context
-2. Leave notes when you make decisions or discover something important
-3. Create puzzles for unknowns - don't block on them
-4. Update or consolidate notes to keep memory focused
-5. You are the agent - ezer only stores and retrieves, you do the thinking
+### Work in Small, Verifiable Increments
+- Implement the smallest useful slice first, not the full solution
+- Test and commit before moving to the next piece
+- Run verifiable outputs (tests, typecheck, build) before every commit
+- Avoid premature abstractions - only write code when it's actually needed
+
+### Use Puzzles to Break Down Work
+- When you hit an unknown or complexity, create a puzzle instead of getting stuck
+- Break large tasks into smaller puzzles with dependencies
+- Don't work on too many things at once - focus on one puzzle at a time
+- Close puzzles from the bottom up (resolve dependencies first)
+- Puzzles are for things you CAN'T solve now; notes are for things you LEARNED
+
+### Leave Notes for Future Sessions
+- Document decisions and their rationale (why, not just what)
+- Record discoveries: patterns found, gotchas encountered, file locations
+- Update or consolidate notes to keep context focused and relevant
+
+### Remember
+- Run \`ezer\` at session start to load context
+- You are the agent - ezer only stores and retrieves, you do the thinking
 `;
 }
 
