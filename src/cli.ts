@@ -1,5 +1,6 @@
 import { defineCommand, runMain } from "citty";
 import {
+  createFeedback,
   createNote,
   createPuzzle,
   deleteEntry,
@@ -468,9 +469,14 @@ const main = defineCommand({
               required: true,
             },
           },
-          run({ args }) {
-            // TODO: Implement feedback create
-            console.log(`TODO: Create feedback: ${args["content"]}`);
+          async run({ args }) {
+            const content = args["content"];
+            if (typeof content !== "string") {
+              console.error("Error: --content is required");
+              process.exit(1);
+            }
+            const entry = await createFeedback(content);
+            console.log(`Created ${entry.id}`);
           },
         }),
       },

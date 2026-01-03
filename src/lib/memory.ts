@@ -130,7 +130,30 @@ function serializeMemoryEntry(entry: Omit<MemoryEntry, "id">): string {
   return `---\n${yaml}\n---\n${entry.content}\n`;
 }
 
+const SOFT_LIMIT = 30000;
+const HARD_LIMIT = 32768;
+
+function getByteSize(text: string): number {
+  return Buffer.byteLength(text, "utf-8");
+}
+
+async function getTotalNoteSize(): Promise<number> {
+  const entries = await listMemoryEntries("note");
+  return entries.reduce((sum, entry) => sum + getByteSize(entry.content), 0);
+}
+
 export async function createNote(content: string): Promise<MemoryEntry> {
+  const currentTotal = await getTotalNoteSize();
+  const contentBytes = getByteSize(content);
+  const newTotal = currentTotal + contentBytes;
+
+  // Check hard limit
+  if (newTotal > HARD_LIMIT) {
+    throw new Error(
+      `Cannot add note: total would be ${newTotal} bytes, exceeds hard limit of ${HARD_LIMIT} bytes`
+    );
+  }
+
   await ensureDir();
   const id = await generateId();
   const created = new Date().toISOString();
@@ -138,6 +161,34 @@ export async function createNote(content: string): Promise<MemoryEntry> {
   const entry: MemoryEntry = {
     id,
     type: "note",
+    content,
+    created,
+  };
+
+  const filePath = join(MEMORY_DIR, `${id}.md`);
+  await writeFile(filePath, serializeMemoryEntry(entry));
+
+  // Warn if soft limit exceeded
+  if (newTotal > SOFT_LIMIT) {
+    console.warn(
+      `Warning: Total notes size (${newTotal} bytes) exceeds soft limit of ${SOFT_LIMIT} bytes`
+    );
+    console.warn(
+      `Hint: Use 'ezer note replace --ids id1,id2 --content "..."' to consolidate related notes`
+    );
+  }
+
+  return entry;
+}
+
+export async function createFeedback(content: string): Promise<MemoryEntry> {
+  await ensureDir();
+  const id = await generateId();
+  const created = new Date().toISOString();
+
+  const entry: MemoryEntry = {
+    id,
+    type: "feedback",
     content,
     created,
   };
