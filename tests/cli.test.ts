@@ -42,11 +42,13 @@ test("can create and list notes", async () => {
   const match = create.stdout.match(/Created (\S+)/);
   expect(match).not.toBeNull();
   const id = match?.[1];
-  expect(id).toBeDefined();
+  if (!id) {
+    throw new Error("Note id not parsed from output");
+  }
 
   const list = await runEzer(cwd, ["note", "list"]);
   expect(list.exitCode).toBe(0);
-  expect(list.stdout).toContain(id!);
+  expect(list.stdout).toContain(id);
   expect(list.stdout).toContain("hello world");
 
   const files = await readdir(join(cwd, ".ezer", "memory"));
