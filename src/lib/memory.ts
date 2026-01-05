@@ -301,10 +301,6 @@ export async function deleteEntry(id: string): Promise<void> {
     throw new Error(`${id} is not a note or puzzle`);
   }
 
-  // Delete the file by renaming or using a delete operation
-  // Using a simple approach: write empty content to signify deletion
-  // Actually, we should just remove the file - but for now we'll use writeFile with empty
-  // Let's check if there's a way... Actually, let's just use fs module's unlink
   const fs = await import("node:fs/promises");
   await fs.unlink(filePath);
 }
