@@ -297,7 +297,7 @@ export async function deleteEntry(id: string): Promise<void> {
   const fileContent = await readFile(filePath, "utf-8");
   const entry = parseMemoryFile(id, fileContent);
 
-  if (entry.type !== "note" && entry.type !== "puzzle") {
+  if (!["note", "puzzle"].includes(entry.type)) {
     throw new Error(`${id} is not a note or puzzle`);
   }
 
