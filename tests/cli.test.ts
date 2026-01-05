@@ -21,7 +21,8 @@ async function runEzer(cwd: string, args: string[] = []) {
 }
 
 function parseCreatedId(output: string): string {
-  const match = output.match(new RegExp(`Created (${ID_PATTERN.source})`));
+  const idPattern = ID_PATTERN.source.replace(/^\^|\$$/g, "");
+  const match = output.match(new RegExp(`Created (${idPattern})`));
   if (!match?.[1]) {
     throw new Error("Id not parsed from output");
   }
