@@ -297,8 +297,8 @@ export async function deleteEntry(id: string): Promise<void> {
   const fileContent = await readFile(filePath, "utf-8");
   const entry = parseMemoryFile(id, fileContent);
 
-  if (entry.type !== "note") {
-    throw new Error(`${id} is not a note`);
+  if (entry.type !== "note" && entry.type !== "puzzle") {
+    throw new Error(`${id} is not a note or puzzle`);
   }
 
   // Delete the file by renaming or using a delete operation
