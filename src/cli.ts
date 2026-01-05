@@ -3,7 +3,8 @@ import {
   createFeedback,
   createNote,
   createPuzzle,
-  deleteEntry,
+  ID_PATTERN,
+  deleteNote,
   listMemoryEntries,
   renderPuzzleTree,
   replaceNotes,
@@ -36,7 +37,9 @@ async function renderState(): Promise<string> {
     if (lines.length > 0) lines.push("");
     lines.push("### Notes");
     for (const note of notes) {
-      lines.push(`- ${note.id}: ${note.content}`);
+      lines.push(`<note id="${note.id}">`);
+      lines.push(note.content);
+      lines.push("</note>");
     }
   }
 
@@ -79,6 +82,7 @@ Mark unknowns you can't resolve now. Don't get stuck - note it and move on.
   ezer puzzle list --ready                      # puzzles with deps resolved
   ezer puzzle list --blocked                    # puzzles with open deps
   ezer puzzle tree --id ez-xxxxx                # show dependency tree
+  ezer puzzle describe --ids ez-a,ez-b          # show puzzle details in XML
 
 ### Memory Management
 When notes accumulate, consolidate related ones:
@@ -227,7 +231,7 @@ const main = defineCommand({
               process.exit(1);
             }
             try {
-              await deleteEntry(id);
+              await deleteNote(id);
               console.log(`Deleted ${id}`);
             } catch (error) {
               console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
@@ -391,7 +395,7 @@ const main = defineCommand({
               process.exit(1);
             }
             try {
-              await deleteEntry(id);
+              await deleteNote(id);
               console.log(`Deleted ${id}`);
             } catch (error) {
               console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
@@ -448,6 +452,9 @@ const main = defineCommand({
               const blocksInfo = puzzle.blocks ? ` (blocks ${puzzle.blocks})` : "";
               console.log(`${puzzle.id}: ${puzzle.title}${blocksInfo}`);
             }
+            console.log(
+              'Use "ezer puzzle describe --ids <id1,id2>" to view puzzle details.'
+            );
           },
         }),
         tree: defineCommand({
@@ -471,9 +478,65 @@ const main = defineCommand({
             try {
               const tree = await renderPuzzleTree(id);
               console.log(tree);
+              console.log(
+                '\nUse "ezer puzzle describe --ids <id>" to view puzzle details.'
+              );
             } catch (error) {
               console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
               process.exit(1);
+            }
+          },
+        }),
+        describe: defineCommand({
+          meta: {
+            name: "describe",
+            description: "Show puzzle descriptions",
+          },
+          args: {
+            ids: {
+              type: "string",
+              description: "Comma-separated puzzle IDs",
+              required: true,
+            },
+          },
+          async run({ args }) {
+            const idsArg = args["ids"];
+            if (typeof idsArg !== "string") {
+              console.error("Error: --ids is required");
+              process.exit(1);
+            }
+            const ids = idsArg
+              .split(",")
+              .map((id) => id.trim())
+              .filter((id) => id.length > 0);
+            if (ids.length === 0) {
+              console.error("Error: --ids is required");
+              process.exit(1);
+            }
+
+            const invalidIds = ids.filter((id) => !ID_PATTERN.test(id));
+            if (invalidIds.length > 0) {
+              console.error(`Error: invalid puzzle id(s): ${invalidIds.join(", ")}`);
+              process.exit(1);
+            }
+
+            const puzzles = await listMemoryEntries("puzzle");
+            const map = new Map(puzzles.map((p) => [p.id, p]));
+
+            const missingIds = ids.filter((id) => !map.has(id));
+            if (missingIds.length > 0) {
+              console.error(`Error: puzzle(s) not found: ${missingIds.join(", ")}`);
+              process.exit(1);
+            }
+
+            for (const [index, id] of ids.entries()) {
+              const puzzle = map.get(id)!;
+              console.log(`<puzzle id="${puzzle.id}" title="${puzzle.title ?? ""}">`);
+              console.log(puzzle.content ?? "");
+              console.log("</puzzle>");
+              if (index < ids.length - 1) {
+                console.log("");
+              }
             }
           },
         }),

@@ -9,6 +9,8 @@ const CONFIG_FILE = join(EZER_DIR, "config.yaml");
 // Base32 alphabet (lowercase, no padding)
 const BASE32_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
 
+export const ID_PATTERN = /^[a-z0-9]{2,}-[a-z2-7]{5}$/;
+
 function generateRandomId(length: number): string {
   let result = "";
   for (let i = 0; i < length; i++) {
@@ -292,7 +294,7 @@ export async function updateNote(
   return entry;
 }
 
-export async function deleteEntry(id: string): Promise<void> {
+export async function deleteNote(id: string): Promise<void> {
   const filePath = join(MEMORY_DIR, `${id}.md`);
   const fileContent = await readFile(filePath, "utf-8");
   const entry = parseMemoryFile(id, fileContent);
