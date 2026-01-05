@@ -81,6 +81,7 @@ Mark unknowns you can't resolve now. Don't get stuck - note it and move on.
   ezer puzzle list --ready                      # puzzles with deps resolved
   ezer puzzle list --blocked                    # puzzles with open deps
   ezer puzzle tree --id ez-xxxxx                # show dependency tree
+  ezer puzzle describe --ids ez-a,ez-b          # show puzzle details in XML
 
 ### Memory Management
 When notes accumulate, consolidate related ones:
