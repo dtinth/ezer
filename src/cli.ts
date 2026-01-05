@@ -221,7 +221,11 @@ const main = defineCommand({
             },
           },
           async run({ args }) {
-            const id = args["id"] as string;
+            const id = args["id"];
+            if (typeof id !== "string") {
+              console.error("Error: --id is required");
+              process.exit(1);
+            }
             try {
               await deleteEntry(id);
               console.log(`Deleted ${id}`);
