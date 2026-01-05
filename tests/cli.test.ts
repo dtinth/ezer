@@ -56,3 +56,28 @@ test("can create and list notes", async () => {
   const fileContent = await readFile(join(cwd, ".ezer", "memory", `${id}.md`), "utf-8");
   expect(fileContent).toContain("hello world");
 });
+
+test("can delete a puzzle", async () => {
+  const create = await runEzer(cwd, ["puzzle", "create", "--title", "mystery"]);
+  expect(create.exitCode).toBe(0);
+  expect(create.stderr).toBe("");
+
+  const match = create.stdout.match(/Created ([a-z0-9]{2,}-[a-z2-7]{5})/);
+  expect(match).not.toBeNull();
+  const id = match?.[1];
+  if (!id) {
+    throw new Error("Puzzle id not parsed from output");
+  }
+
+  const remove = await runEzer(cwd, ["puzzle", "delete", "--id", id]);
+  expect(remove.exitCode).toBe(0);
+  expect(remove.stderr).toBe("");
+  expect(remove.stdout).toContain(`Deleted ${id}`);
+
+  const list = await runEzer(cwd, ["puzzle", "list"]);
+  expect(list.exitCode).toBe(0);
+  expect(list.stdout).toContain("No puzzles.");
+
+  const files = await readdir(join(cwd, ".ezer", "memory"));
+  expect(files).not.toContain(`${id}.md`);
+});
