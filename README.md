@@ -4,8 +4,10 @@ A robot companion CLI for AI agents. Maintains context and memory across session
 
 ## Install
 
+`bun install` currently crashes on Bun 1.3.x in this environment while decoding the Brotli-compressed npm registry responses (it aborts with `Assertion failure: Expected metadata to be set`). Use npm to install dependencies instead:
+
 ```bash
-bun install
+npm install
 ```
 
 ## Usage
