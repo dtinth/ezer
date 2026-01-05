@@ -56,3 +56,58 @@ test("can create and list notes", async () => {
   const fileContent = await readFile(join(cwd, ".ezer", "memory", `${id}.md`), "utf-8");
   expect(fileContent).toContain("hello world");
 });
+
+test("renders notes as XML in status output", async () => {
+  const create = await runEzer(cwd, ["note", "create", "--content", "note xml"]);
+  expect(create.exitCode).toBe(0);
+  const id = create.stdout.match(/Created ([a-z0-9]{2,}-[a-z2-7]{5})/)?.[1];
+  if (!id) throw new Error("Note id not parsed from output");
+
+  const status = await runEzer(cwd, ["status"]);
+  expect(status.exitCode).toBe(0);
+  expect(status.stdout).toContain(`<note id="${id}">`);
+  expect(status.stdout).toContain("note xml");
+  expect(status.stdout).toContain("</note>");
+});
+
+test("describes puzzles in XML and suggests usage from list/tree", async () => {
+  const create1 = await runEzer(cwd, [
+    "puzzle",
+    "create",
+    "--title",
+    "First puzzle",
+    "--description",
+    "first details",
+  ]);
+  const id1 = create1.stdout.match(/Created ([a-z0-9]{2,}-[a-z2-7]{5})/)?.[1];
+  if (!id1) throw new Error("Puzzle id not parsed from output");
+
+  const create2 = await runEzer(cwd, [
+    "puzzle",
+    "create",
+    "--title",
+    "Second puzzle",
+    "--description",
+    "second details",
+  ]);
+  const id2 = create2.stdout.match(/Created ([a-z0-9]{2,}-[a-z2-7]{5})/)?.[1];
+  if (!id2) throw new Error("Puzzle id not parsed from output");
+
+  const list = await runEzer(cwd, ["puzzle", "list"]);
+  expect(list.stdout).toContain(id1);
+  expect(list.stdout).toContain(id2);
+  expect(list.stdout).toContain(
+    'Use "ezer puzzle describe --ids <id1,id2>" to view puzzle details.'
+  );
+
+  const describe = await runEzer(cwd, ["puzzle", "describe", "--ids", `${id1},${id2}`]);
+  expect(describe.exitCode).toBe(0);
+  expect(describe.stdout).toContain(`<puzzle id="${id1}" title="First puzzle">`);
+  expect(describe.stdout).toContain("first details");
+  expect(describe.stdout).toContain(`<puzzle id="${id2}" title="Second puzzle">`);
+  expect(describe.stdout).toContain("second details");
+
+  const tree = await runEzer(cwd, ["puzzle", "tree", "--id", id1]);
+  expect(tree.stdout).toContain(id1);
+  expect(tree.stdout).toContain('Use "ezer puzzle describe --ids <id>" to view puzzle details.');
+});
