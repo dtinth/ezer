@@ -77,6 +77,7 @@ Mark unknowns you can't resolve now. Don't get stuck - note it and move on.
   ezer puzzle create --title "..." --blocks ez-x   # this puzzle blocks ez-x
   ezer puzzle close --id ez-xxxxx               # mark resolved
   ezer puzzle reopen --id ez-xxxxx              # reopen puzzle
+  ezer puzzle delete --id ez-xxxxx              # delete puzzle
   ezer puzzle list                              # list all puzzles
   ezer puzzle list --ready                      # puzzles with deps resolved
   ezer puzzle list --blocked                    # puzzles with open deps
@@ -373,6 +374,33 @@ const main = defineCommand({
             }
             await updatePuzzleStatus(id, "open");
             console.log(`Reopened ${id}`);
+          },
+        }),
+        delete: defineCommand({
+          meta: {
+            name: "delete",
+            description: "Delete a puzzle",
+          },
+          args: {
+            id: {
+              type: "string",
+              description: "Puzzle ID",
+              required: true,
+            },
+          },
+          async run({ args }) {
+            const id = args["id"];
+            if (typeof id !== "string") {
+              console.error("Error: --id is required");
+              process.exit(1);
+            }
+            try {
+              await deleteEntry(id);
+              console.log(`Deleted ${id}`);
+            } catch (error) {
+              console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+              process.exit(1);
+            }
           },
         }),
         list: defineCommand({

@@ -112,3 +112,23 @@ test("describes puzzles in XML and suggests usage from list/tree", async () => {
   expect(tree.stdout).toContain(id1);
   expect(tree.stdout).toContain('Use "ezer puzzle describe --ids <id>" to view puzzle details.');
 });
+
+test("can delete a puzzle", async () => {
+  const create = await runEzer(cwd, ["puzzle", "create", "--title", "mystery"]);
+  expect(create.exitCode).toBe(0);
+  expect(create.stderr).toBe("");
+
+  const id = parseCreatedId(create.stdout);
+
+  const remove = await runEzer(cwd, ["puzzle", "delete", "--id", id]);
+  expect(remove.exitCode).toBe(0);
+  expect(remove.stderr).toBe("");
+  expect(remove.stdout).toContain(`Deleted ${id}`);
+
+  const list = await runEzer(cwd, ["puzzle", "list"]);
+  expect(list.exitCode).toBe(0);
+  expect(list.stdout).toContain("No puzzles.");
+
+  const files = await readdir(join(cwd, ".ezer", "memory"));
+  expect(files).not.toContain(`${id}.md`);
+});

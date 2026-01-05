@@ -299,8 +299,8 @@ export async function deleteNote(id: string): Promise<void> {
   const fileContent = await readFile(filePath, "utf-8");
   const entry = parseMemoryFile(id, fileContent);
 
-  if (entry.type !== "note") {
-    throw new Error(`${id} is not a note`);
+  if (!["note", "puzzle"].includes(entry.type)) {
+    throw new Error(`${id} is not a note or puzzle`);
   }
 
   const fs = await import("node:fs/promises");
