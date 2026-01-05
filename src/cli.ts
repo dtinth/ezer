@@ -3,8 +3,8 @@ import {
   createFeedback,
   createNote,
   createPuzzle,
-  deleteNote,
   ID_PATTERN,
+  deleteNote,
   listMemoryEntries,
   renderPuzzleTree,
   replaceNotes,
@@ -395,7 +395,7 @@ const main = defineCommand({
               process.exit(1);
             }
             try {
-              await deleteEntry(id);
+              await deleteNote(id);
               console.log(`Deleted ${id}`);
             } catch (error) {
               console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
