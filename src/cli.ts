@@ -3,13 +3,30 @@ import {
   createFeedback,
   createNote,
   createPuzzle,
-  deleteEntry,
+  deleteNote,
+  ID_PATTERN,
   listMemoryEntries,
   renderPuzzleTree,
   replaceNotes,
   updateNote,
   updatePuzzleStatus,
 } from "./lib/memory.ts";
+
+function escapeXmlAttr(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function escapeXmlContent(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
 
 async function renderState(): Promise<string> {
   const entries = await listMemoryEntries();
@@ -36,8 +53,8 @@ async function renderState(): Promise<string> {
     if (lines.length > 0) lines.push("");
     lines.push("### Notes");
     for (const note of notes) {
-      lines.push(`<note id="${note.id}">`);
-      lines.push(note.content);
+      lines.push(`<note id="${escapeXmlAttr(note.id)}">`);
+      lines.push(escapeXmlContent(note.content));
       lines.push("</note>");
     }
   }
@@ -228,7 +245,7 @@ const main = defineCommand({
               process.exit(1);
             }
             try {
-              await deleteEntry(id);
+              await deleteNote(id);
               console.log(`Deleted ${id}`);
             } catch (error) {
               console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
@@ -484,17 +501,29 @@ const main = defineCommand({
               process.exit(1);
             }
 
+            const invalidIds = ids.filter((id) => !ID_PATTERN.test(id));
+            if (invalidIds.length > 0) {
+              console.error(`Error: invalid puzzle id(s): ${invalidIds.join(", ")}`);
+              process.exit(1);
+            }
+
             const puzzles = await listMemoryEntries("puzzle");
             const map = new Map(puzzles.map((p) => [p.id, p]));
 
+            const missingIds = ids.filter((id) => !map.has(id));
+            if (missingIds.length > 0) {
+              console.error(`Error: puzzle(s) not found: ${missingIds.join(", ")}`);
+              process.exit(1);
+            }
+
             for (const [index, id] of ids.entries()) {
-              const puzzle = map.get(id);
-              if (!puzzle) {
-                console.error(`Error: puzzle ${id} not found`);
-                process.exit(1);
-              }
-              console.log(`<puzzle id="${puzzle.id}" title="${puzzle.title ?? ""}">`);
-              console.log(puzzle.content ?? "");
+              const puzzle = map.get(id)!;
+              console.log(
+                `<puzzle id="${escapeXmlAttr(puzzle.id)}" title="${escapeXmlAttr(
+                  puzzle.title ?? ""
+                )}">`
+              );
+              console.log(escapeXmlContent(puzzle.content ?? ""));
               console.log("</puzzle>");
               if (index < ids.length - 1) {
                 console.log("");

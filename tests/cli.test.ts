@@ -2,6 +2,7 @@ import { mkdtemp, readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test, beforeEach } from "bun:test";
+import { ID_PATTERN } from "../src/lib/memory.ts";
 
 const BIN_PATH = join(process.cwd(), "bin", "ezer");
 
@@ -17,6 +18,14 @@ async function runEzer(cwd: string, args: string[] = []) {
     proc.exited,
   ]);
   return { stdout, stderr, exitCode };
+}
+
+function parseCreatedId(output: string): string {
+  const match = output.match(new RegExp(`Created (${ID_PATTERN.source})`));
+  if (!match?.[1]) {
+    throw new Error("Id not parsed from output");
+  }
+  return match[1];
 }
 
 let cwd: string;
@@ -39,12 +48,7 @@ test("can create and list notes", async () => {
   expect(create.exitCode).toBe(0);
   expect(create.stderr).toBe("");
 
-  const match = create.stdout.match(/Created ([a-z0-9]{2,}-[a-z2-7]{5})/);
-  expect(match).not.toBeNull();
-  const id = match?.[1];
-  if (!id) {
-    throw new Error("Note id not parsed from output");
-  }
+  const id = parseCreatedId(create.stdout);
 
   const list = await runEzer(cwd, ["note", "list"]);
   expect(list.exitCode).toBe(0);
@@ -60,8 +64,7 @@ test("can create and list notes", async () => {
 test("renders notes as XML in status output", async () => {
   const create = await runEzer(cwd, ["note", "create", "--content", "note xml"]);
   expect(create.exitCode).toBe(0);
-  const id = create.stdout.match(/Created ([a-z0-9]{2,}-[a-z2-7]{5})/)?.[1];
-  if (!id) throw new Error("Note id not parsed from output");
+  const id = parseCreatedId(create.stdout);
 
   const status = await runEzer(cwd, ["status"]);
   expect(status.exitCode).toBe(0);
@@ -79,8 +82,7 @@ test("describes puzzles in XML and suggests usage from list/tree", async () => {
     "--description",
     "first details",
   ]);
-  const id1 = create1.stdout.match(/Created ([a-z0-9]{2,}-[a-z2-7]{5})/)?.[1];
-  if (!id1) throw new Error("Puzzle id not parsed from output");
+  const id1 = parseCreatedId(create1.stdout);
 
   const create2 = await runEzer(cwd, [
     "puzzle",
@@ -90,8 +92,7 @@ test("describes puzzles in XML and suggests usage from list/tree", async () => {
     "--description",
     "second details",
   ]);
-  const id2 = create2.stdout.match(/Created ([a-z0-9]{2,}-[a-z2-7]{5})/)?.[1];
-  if (!id2) throw new Error("Puzzle id not parsed from output");
+  const id2 = parseCreatedId(create2.stdout);
 
   const list = await runEzer(cwd, ["puzzle", "list"]);
   expect(list.stdout).toContain(id1);
