@@ -28,6 +28,6 @@ jobs:
         run: |
           # bun install has been flaky in some environments; keep dependencies available with an npm fallback without creating package-lock (we use bun.lock).
           if ! bun install; then
-            echo "bun install failed; falling back to npm install --package-lock=false"
-            npm install --package-lock=false
+            echo "bun install failed; falling back to npm install --no-package-lock"
+            npm install --no-package-lock
           fi
