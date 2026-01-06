@@ -121,7 +121,7 @@ test("describes puzzles in XML and suggests usage from list/tree", async () => {
   expect(tree.stdout).toContain('Use "ezer puzzle describe --ids <id>" to view puzzle details.');
 });
 
-test("lists ready vs blocked puzzles based on dependencies", async () => {
+test("lists puzzles with statuses, including closed filter", async () => {
   const main = await runEzer(cwd, ["puzzle", "create", "--title", "Main task"]);
   const mainId = parseCreatedId(main.stdout);
 
@@ -135,17 +135,24 @@ test("lists ready vs blocked puzzles based on dependencies", async () => {
   ]);
   const blockerId = parseCreatedId(blocker.stdout);
 
+  const readyDefault = await runEzer(cwd, ["puzzle", "list"]);
+  expect(readyDefault.exitCode).toBe(0);
+  const readyDefaultLines = parseListLines(readyDefault.stdout);
+  expect(readyDefaultLines.some((line) => line.startsWith(`${blockerId} [ready]:`))).toBe(true);
+  expect(readyDefaultLines.some((line) => line.startsWith(`${mainId} [`))).toBe(false);
+
   const ready = await runEzer(cwd, ["puzzle", "list", "--ready"]);
   expect(ready.exitCode).toBe(0);
   const readyLines = parseListLines(ready.stdout);
-  expect(readyLines.some((line) => line.startsWith(`${blockerId}:`))).toBe(true);
-  expect(readyLines.some((line) => line.startsWith(`${mainId}:`))).toBe(false);
+  expect(readyLines.some((line) => line.startsWith(`${blockerId} [ready]:`))).toBe(true);
+  expect(readyLines.some((line) => line.startsWith(`${mainId} [`))).toBe(false);
 
   const blocked = await runEzer(cwd, ["puzzle", "list", "--blocked"]);
   expect(blocked.exitCode).toBe(0);
   const blockedLines = parseListLines(blocked.stdout);
-  expect(blockedLines.some((line) => line.startsWith(`${mainId}:`))).toBe(true);
-  expect(blockedLines.some((line) => line.startsWith(`${blockerId}:`))).toBe(false);
+  expect(blockedLines.some((line) => line.startsWith(`${mainId} [blocked]:`))).toBe(true);
+  expect(blockedLines.some((line) => line.includes(`blocked by ${blockerId}`))).toBe(true);
+  expect(blockedLines.some((line) => line.startsWith(`${blockerId} [`))).toBe(false);
 
   const closeBlocker = await runEzer(cwd, ["puzzle", "close", "--id", blockerId]);
   expect(closeBlocker.exitCode).toBe(0);
@@ -153,8 +160,24 @@ test("lists ready vs blocked puzzles based on dependencies", async () => {
   const readyAfterClose = await runEzer(cwd, ["puzzle", "list", "--ready"]);
   expect(readyAfterClose.exitCode).toBe(0);
   const readyAfterCloseLines = parseListLines(readyAfterClose.stdout);
-  expect(readyAfterCloseLines.some((line) => line.startsWith(`${mainId}:`))).toBe(true);
-  expect(readyAfterCloseLines.some((line) => line.startsWith(`${blockerId}:`))).toBe(false);
+  expect(readyAfterCloseLines.some((line) => line.startsWith(`${mainId} [ready]:`))).toBe(true);
+  expect(readyAfterCloseLines.some((line) => line.includes(blockerId))).toBe(false);
+
+  const closeMain = await runEzer(cwd, ["puzzle", "close", "--id", mainId]);
+  expect(closeMain.exitCode).toBe(0);
+
+  const closedList = await runEzer(cwd, ["puzzle", "list", "--closed"]);
+  expect(closedList.exitCode).toBe(0);
+  const closedLines = parseListLines(closedList.stdout);
+  expect(closedLines.some((line) => line.startsWith(`${mainId} [closed]:`))).toBe(true);
+  expect(closedLines.some((line) => line.startsWith(`${blockerId} [closed]:`))).toBe(true);
+  const closedTimes = closedLines.map(
+    (line) => /closed at ([^)]+)\)/.exec(line)?.[1] ?? ""
+  );
+  expect(closedTimes.every((time) => time.length > 0)).toBe(true);
+  const closedTimeValues = closedTimes.map((time) => new Date(time).getTime());
+  const sortedClosedTimes = [...closedTimeValues].sort((a, b) => b - a);
+  expect(closedTimeValues).toEqual(sortedClosedTimes);
 });
 
 test("can delete a puzzle", async () => {
