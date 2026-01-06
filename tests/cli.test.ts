@@ -114,6 +114,48 @@ test("describes puzzles in XML and suggests usage from list/tree", async () => {
   expect(tree.stdout).toContain('Use "ezer puzzle describe --ids <id>" to view puzzle details.');
 });
 
+test("lists ready vs blocked puzzles based on dependencies", async () => {
+  const main = await runEzer(cwd, ["puzzle", "create", "--title", "Main task"]);
+  const mainId = parseCreatedId(main.stdout);
+
+  const blocker = await runEzer(cwd, [
+    "puzzle",
+    "create",
+    "--title",
+    "Blocker task",
+    "--blocks",
+    mainId,
+  ]);
+  const blockerId = parseCreatedId(blocker.stdout);
+
+  const ready = await runEzer(cwd, ["puzzle", "list", "--ready"]);
+  expect(ready.exitCode).toBe(0);
+  const readyLines = ready.stdout
+    .split("\n")
+    .filter((line) => line.trim().length > 0 && line.includes(":"));
+  expect(readyLines.some((line) => line.startsWith(`${blockerId}:`))).toBe(true);
+  expect(readyLines.some((line) => line.startsWith(`${mainId}:`))).toBe(false);
+
+  const blocked = await runEzer(cwd, ["puzzle", "list", "--blocked"]);
+  expect(blocked.exitCode).toBe(0);
+  const blockedLines = blocked.stdout
+    .split("\n")
+    .filter((line) => line.trim().length > 0 && line.includes(":"));
+  expect(blockedLines.some((line) => line.startsWith(`${mainId}:`))).toBe(true);
+  expect(blockedLines.some((line) => line.startsWith(`${blockerId}:`))).toBe(false);
+
+  const closeBlocker = await runEzer(cwd, ["puzzle", "close", "--id", blockerId]);
+  expect(closeBlocker.exitCode).toBe(0);
+
+  const readyAfterClose = await runEzer(cwd, ["puzzle", "list", "--ready"]);
+  expect(readyAfterClose.exitCode).toBe(0);
+  const readyAfterCloseLines = readyAfterClose.stdout
+    .split("\n")
+    .filter((line) => line.trim().length > 0 && line.includes(":"));
+  expect(readyAfterCloseLines.some((line) => line.startsWith(`${mainId}:`))).toBe(true);
+  expect(readyAfterCloseLines.some((line) => line.startsWith(`${blockerId}:`))).toBe(false);
+});
+
 test("can delete a puzzle", async () => {
   const create = await runEzer(cwd, ["puzzle", "create", "--title", "mystery"]);
   expect(create.exitCode).toBe(0);
