@@ -262,6 +262,35 @@ export async function updatePuzzleStatus(
   return entry;
 }
 
+export async function updatePuzzleBlocks(
+  id: string,
+  blocksId: string | null
+): Promise<MemoryEntry> {
+  const filePath = join(MEMORY_DIR, `${id}.md`);
+  const content = await readFile(filePath, "utf-8");
+  const entry = parseMemoryFile(id, content);
+
+  if (entry.type !== "puzzle") {
+    throw new Error(`${id} is not a puzzle`);
+  }
+
+  if (blocksId === null) {
+    delete entry.blocks;
+  } else {
+    // Verify the blocks ID exists and is a puzzle
+    const blocksFilePath = join(MEMORY_DIR, `${blocksId}.md`);
+    const blocksContent = await readFile(blocksFilePath, "utf-8");
+    const blocksEntry = parseMemoryFile(blocksId, blocksContent);
+    if (blocksEntry.type !== "puzzle") {
+      throw new Error(`${blocksId} is not a puzzle`);
+    }
+    entry.blocks = blocksId;
+  }
+
+  await writeFile(filePath, serializeMemoryEntry(entry));
+  return entry;
+}
+
 export async function listMemoryEntries(
   type?: MemoryEntry["type"]
 ): Promise<MemoryEntry[]> {

@@ -180,6 +180,53 @@ test("lists puzzles with statuses, including closed filter", async () => {
   expect(closedTimeValues).toEqual(sortedClosedTimes);
 });
 
+test("can link and unlink puzzles with block dependencies", async () => {
+  // Create two puzzles
+  const main = await runEzer(cwd, ["puzzle", "create", "--title", "Main task"]);
+  const mainId = parseCreatedId(main.stdout);
+
+  const blocker = await runEzer(cwd, ["puzzle", "create", "--title", "Blocker task"]);
+  const blockerId = parseCreatedId(blocker.stdout);
+
+  // Initially, both should be in ready list
+  const readyBefore = await runEzer(cwd, ["puzzle", "list", "--ready"]);
+  const readyBeforeLines = parseListLines(readyBefore.stdout);
+  expect(readyBeforeLines.some((line) => line.startsWith(`${mainId} [ready]:`))).toBe(true);
+  expect(readyBeforeLines.some((line) => line.startsWith(`${blockerId} [ready]:`))).toBe(true);
+
+  // Link blocker to block main
+  const link = await runEzer(cwd, ["puzzle", "link", "--id", blockerId, "--blocks", mainId]);
+  expect(link.exitCode).toBe(0);
+  expect(link.stderr).toBe("");
+  expect(link.stdout).toContain(`Linked ${blockerId} to block ${mainId}`);
+
+  // Now main should be blocked, blocker should be ready
+  const blockedAfterLink = await runEzer(cwd, ["puzzle", "list", "--blocked"]);
+  const blockedAfterLinkLines = parseListLines(blockedAfterLink.stdout);
+  expect(blockedAfterLinkLines.some((line) => line.startsWith(`${mainId} [blocked]:`))).toBe(
+    true
+  );
+
+  const readyAfterLink = await runEzer(cwd, ["puzzle", "list", "--ready"]);
+  const readyAfterLinkLines = parseListLines(readyAfterLink.stdout);
+  expect(readyAfterLinkLines.some((line) => line.startsWith(`${blockerId} [ready]:`))).toBe(true);
+  expect(readyAfterLinkLines.some((line) => line.startsWith(`${mainId} [`))).toBe(false);
+
+  // Unlink the blocker
+  const unlink = await runEzer(cwd, ["puzzle", "unlink", "--id", blockerId]);
+  expect(unlink.exitCode).toBe(0);
+  expect(unlink.stderr).toBe("");
+  expect(unlink.stdout).toContain(`Unlinked ${blockerId}`);
+
+  // Now both should be ready again
+  const readyAfterUnlink = await runEzer(cwd, ["puzzle", "list", "--ready"]);
+  const readyAfterUnlinkLines = parseListLines(readyAfterUnlink.stdout);
+  expect(readyAfterUnlinkLines.some((line) => line.startsWith(`${mainId} [ready]:`))).toBe(true);
+  expect(readyAfterUnlinkLines.some((line) => line.startsWith(`${blockerId} [ready]:`))).toBe(
+    true
+  );
+});
+
 test("can delete a puzzle", async () => {
   const create = await runEzer(cwd, ["puzzle", "create", "--title", "mystery"]);
   expect(create.exitCode).toBe(0);
