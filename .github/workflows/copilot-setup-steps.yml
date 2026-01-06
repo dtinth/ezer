@@ -22,12 +22,7 @@ jobs:
         uses: jdx/mise-action@v2.1.0
 
       - name: Install Bun
-        run: mise install bun
+        run: mise install
 
       - name: Install dependencies
-        run: |
-          # bun install has been flaky in some environments; keep dependencies available with an npm fallback without creating package-lock (we use bun.lock).
-          if ! bun install; then
-            echo "bun install failed; falling back to npm install --no-package-lock"
-            npm install --no-package-lock
-          fi
+        run: bun install
