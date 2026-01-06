@@ -74,6 +74,7 @@ export interface MemoryEntry {
   type: "note" | "puzzle" | "feedback";
   content: string;
   created: string;
+  closedAt?: string;
   // Puzzle-specific fields
   title?: string;
   status?: "open" | "closed";
@@ -86,6 +87,7 @@ interface FrontMatter {
   title?: string;
   status?: string;
   blocks?: string;
+  closedAt?: string;
 }
 
 function parseMemoryFile(id: string, content: string): MemoryEntry {
@@ -108,6 +110,9 @@ function parseMemoryFile(id: string, content: string): MemoryEntry {
   if (frontMatter?.status === "open" || frontMatter?.status === "closed") {
     entry.status = frontMatter.status;
   }
+  if (typeof frontMatter?.closedAt === "string") {
+    entry.closedAt = frontMatter.closedAt;
+  }
   if (frontMatter?.blocks !== undefined) {
     entry.blocks = frontMatter.blocks;
   }
@@ -124,6 +129,9 @@ function serializeMemoryEntry(entry: Omit<MemoryEntry, "id">): string {
   }
   if (entry.status) {
     frontMatter["status"] = entry.status;
+  }
+  if (entry.closedAt) {
+    frontMatter["closedAt"] = entry.closedAt;
   }
   if (entry.blocks) {
     frontMatter["blocks"] = entry.blocks;
@@ -245,6 +253,11 @@ export async function updatePuzzleStatus(
   }
 
   entry.status = status;
+  if (status === "closed") {
+    entry.closedAt = new Date().toISOString();
+  } else {
+    delete entry.closedAt;
+  }
   await writeFile(filePath, serializeMemoryEntry(entry));
   return entry;
 }

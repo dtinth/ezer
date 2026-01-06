@@ -78,9 +78,10 @@ Mark unknowns you can't resolve now. Don't get stuck - note it and move on.
   ezer puzzle close --id ez-xxxxx               # mark resolved
   ezer puzzle reopen --id ez-xxxxx              # reopen puzzle
   ezer puzzle delete --id ez-xxxxx              # delete puzzle
-  ezer puzzle list                              # list all puzzles
+  ezer puzzle list                              # list ready puzzles (default)
   ezer puzzle list --ready                      # puzzles with deps resolved
   ezer puzzle list --blocked                    # puzzles with open deps
+  ezer puzzle list --closed                     # closed puzzles (by closed time)
   ezer puzzle tree --id ez-xxxxx                # show dependency tree
   ezer puzzle describe --ids ez-a,ez-b          # show puzzle details in XML
 
@@ -417,33 +418,56 @@ const main = defineCommand({
               type: "boolean",
               description: "Show only puzzles with unresolved deps",
             },
+            closed: {
+              type: "boolean",
+              description: "Show closed puzzles (sorted by closed time)",
+            },
           },
           async run({ args }) {
             const entries = await listMemoryEntries("puzzle");
-            const puzzles = entries.filter((e) => e.status !== "closed");
+            const openPuzzles = entries.filter((e) => e.status !== "closed");
+            const closedPuzzles = entries.filter((e) => e.status === "closed");
+            const closedWithTimestamp = closedPuzzles.map((puzzle) => ({
+              ...puzzle,
+              closedAt: puzzle.closedAt ?? puzzle.created,
+            }));
 
             // Map of puzzle ID -> list of open puzzles that block it
-            const blockers = new Map<string, typeof puzzles>();
-            for (const puzzle of puzzles) {
+            const blockers = new Map<string, typeof openPuzzles>();
+            for (const puzzle of openPuzzles) {
               if (!puzzle.blocks) continue;
               const list = blockers.get(puzzle.blocks) ?? [];
               list.push(puzzle);
               blockers.set(puzzle.blocks, list);
             }
 
-            const readyPuzzles = puzzles.filter(
-              (puzzle) => (blockers.get(puzzle.id) ?? []).length === 0
+            const getBlockingPuzzles = (puzzleId: string): typeof openPuzzles =>
+              blockers.get(puzzleId) ?? [];
+
+            function getStatus(puzzle: (typeof entries)[number]): "ready" | "blocked" | "closed" {
+              if (puzzle.status === "closed") return "closed";
+              const blocking = getBlockingPuzzles(puzzle.id);
+              return blocking.length > 0 ? "blocked" : "ready";
+            }
+
+            const readyPuzzles = openPuzzles.filter((puzzle) => getStatus(puzzle) === "ready");
+
+            const blockedPuzzles = openPuzzles.filter(
+              (puzzle) => getStatus(puzzle) === "blocked"
             );
 
-            const blockedPuzzles = puzzles.filter(
-              (puzzle) => (blockers.get(puzzle.id) ?? []).length > 0
-            );
-
-            let toShow = puzzles;
-            if (args["ready"]) {
-              toShow = readyPuzzles;
+            let toShow: typeof entries;
+            if (args["closed"]) {
+              toShow = [...closedWithTimestamp].sort(
+                (a, b) =>
+                  new Date(b.closedAt!).getTime() - new Date(a.closedAt!).getTime()
+              );
             } else if (args["blocked"]) {
               toShow = blockedPuzzles;
+            } else if (args["ready"]) {
+              toShow = readyPuzzles;
+            } else {
+              toShow = readyPuzzles;
             }
 
             if (toShow.length === 0) {
@@ -453,7 +477,16 @@ const main = defineCommand({
 
             for (const puzzle of toShow) {
               const blocksInfo = puzzle.blocks ? ` (blocks ${puzzle.blocks})` : "";
-              console.log(`${puzzle.id}: ${puzzle.title}${blocksInfo}`);
+              const status = getStatus(puzzle);
+              const detail =
+                status === "ready"
+                  ? `created ${puzzle.created}`
+                  : status === "blocked"
+                    ? `blocked by ${getBlockingPuzzles(puzzle.id)
+                        .map((p) => p.id)
+                        .join(", ")}`
+                    : `closed at ${puzzle.closedAt!}`;
+              console.log(`${puzzle.id} [${status}]: ${puzzle.title}${blocksInfo} (${detail})`);
             }
             console.log(
               'Use "ezer puzzle describe --ids <id1,id2>" to view puzzle details.'
