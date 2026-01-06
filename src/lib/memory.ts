@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { parseYAML, stringifyYAML } from "confbox";
 
@@ -316,8 +316,7 @@ export async function deleteNote(id: string): Promise<void> {
     throw new Error(`${id} is not a note or puzzle`);
   }
 
-  const fs = await import("node:fs/promises");
-  await fs.unlink(filePath);
+  await unlink(filePath);
 }
 
 export async function replaceNotes(
@@ -335,10 +334,9 @@ export async function replaceNotes(
   }
 
   // Delete old notes
-  const fs = await import("node:fs/promises");
   for (const id of ids) {
     const filePath = join(MEMORY_DIR, `${id}.md`);
-    await fs.unlink(filePath);
+    await unlink(filePath);
   }
 
   // Create new consolidated note
@@ -350,10 +348,9 @@ export async function clearFeedback(): Promise<number> {
   if (entries.length === 0) {
     return 0;
   }
-  const fs = await import("node:fs/promises");
   for (const entry of entries) {
     const filePath = join(MEMORY_DIR, `${entry.id}.md`);
-    await fs.unlink(filePath);
+    await unlink(filePath);
   }
   return entries.length;
 }
