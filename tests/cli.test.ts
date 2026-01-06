@@ -199,3 +199,35 @@ test("can delete a puzzle", async () => {
   const files = await readdir(join(cwd, ".ezer", "memory"));
   expect(files).not.toContain(`${id}.md`);
 });
+
+test("feedback submit builds GitHub issue link containing all feedback", async () => {
+  const fb1 = await runEzer(cwd, ["feedback", "create", "--content", "first feedback"]);
+  expect(fb1.exitCode).toBe(0);
+  const fb2 = await runEzer(cwd, ["feedback", "create", "--content", "second feedback"]);
+  expect(fb2.exitCode).toBe(0);
+
+  const submit = await runEzer(cwd, ["feedback", "submit"]);
+  expect(submit.exitCode).toBe(0);
+  const urlText = submit.stdout.trim();
+  const parsed = new URL(urlText);
+  expect(parsed.origin + parsed.pathname).toBe("https://github.com/dtinth/ezer/issues/new");
+  const body = parsed.searchParams.get("body") ?? "";
+  expect(body).toContain("first feedback");
+  expect(body).toContain("second feedback");
+  const title = parsed.searchParams.get("title") ?? "";
+  expect(title).toContain("Feedback from ezer");
+});
+
+test("feedback clear removes stored feedback entries", async () => {
+  await runEzer(cwd, ["feedback", "create", "--content", "temp feedback"]);
+
+  const before = await readdir(join(cwd, ".ezer", "memory"));
+  expect(before.some((file) => file.endsWith(".md"))).toBe(true);
+
+  const clear = await runEzer(cwd, ["feedback", "clear"]);
+  expect(clear.exitCode).toBe(0);
+  expect(clear.stdout).toContain("Cleared 1 feedback entry.");
+
+  const after = await readdir(join(cwd, ".ezer", "memory"));
+  expect(after.some((file) => file.endsWith(".md"))).toBe(false);
+});
