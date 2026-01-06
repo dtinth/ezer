@@ -422,19 +422,22 @@ const main = defineCommand({
             const entries = await listMemoryEntries("puzzle");
             const puzzles = entries.filter((e) => e.status !== "closed");
 
-            // Build a set of open puzzle IDs that can be blocked by others
-            const openPuzzleIds = new Set(puzzles.map((p) => p.id));
+            // Map of puzzle ID -> list of open puzzles that block it
+            const blockers = new Map<string, typeof puzzles>();
+            for (const puzzle of puzzles) {
+              if (!puzzle.blocks) continue;
+              const list = blockers.get(puzzle.blocks) ?? [];
+              list.push(puzzle);
+              blockers.set(puzzle.blocks, list);
+            }
 
-            // Determine which puzzles are ready (their blockers are closed/don't exist)
-            const readyPuzzles = puzzles.filter((puzzle) => {
-              if (!puzzle.blocks) return true; // No dependency
-              return !openPuzzleIds.has(puzzle.blocks);
-            });
+            const readyPuzzles = puzzles.filter(
+              (puzzle) => (blockers.get(puzzle.id) ?? []).length === 0
+            );
 
-            const blockedPuzzles = puzzles.filter((puzzle) => {
-              if (!puzzle.blocks) return false;
-              return openPuzzleIds.has(puzzle.blocks);
-            });
+            const blockedPuzzles = puzzles.filter(
+              (puzzle) => (blockers.get(puzzle.id) ?? []).length > 0
+            );
 
             let toShow = puzzles;
             if (args["ready"]) {
