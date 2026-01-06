@@ -213,10 +213,10 @@ test("can link and unlink puzzles with block dependencies", async () => {
   expect(readyAfterLinkLines.some((line) => line.startsWith(`${mainId} [`))).toBe(false);
 
   // Unlink the blocker
-  const unlink = await runEzer(cwd, ["puzzle", "unlink", "--id", blockerId]);
+  const unlink = await runEzer(cwd, ["puzzle", "unlink", "--id", blockerId, "--blocks", mainId]);
   expect(unlink.exitCode).toBe(0);
   expect(unlink.stderr).toBe("");
-  expect(unlink.stdout).toContain(`Unlinked ${blockerId}`);
+  expect(unlink.stdout).toContain(`Unlinked ${blockerId} from ${mainId}`);
 
   // Now both should be ready again
   const readyAfterUnlink = await runEzer(cwd, ["puzzle", "list", "--ready"]);

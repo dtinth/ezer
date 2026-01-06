@@ -90,7 +90,7 @@ interface FrontMatter {
   closedAt?: string;
 }
 
-function parseMemoryFile(id: string, content: string): MemoryEntry {
+export function parseMemoryFile(id: string, content: string): MemoryEntry {
   const frontMatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
   if (!frontMatterMatch) {
     throw new Error(`Invalid memory file format for ${id}`);

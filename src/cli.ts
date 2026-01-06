@@ -12,7 +12,12 @@ import {
   updateNote,
   updatePuzzleStatus,
   updatePuzzleBlocks,
+  parseMemoryFile,
 } from "./lib/memory.ts";
+import { join } from "node:path";
+import { readFile } from "node:fs/promises";
+
+const MEMORY_DIR = join(".ezer", "memory");
 
 async function renderState(): Promise<string> {
   const entries = await listMemoryEntries();
@@ -76,9 +81,8 @@ Good notes: decisions made, patterns discovered, important file locations.
 Mark unknowns you can't resolve now. Don't get stuck - note it and move on.
 
   ezer puzzle create --title "..."                  # create puzzle
-  ezer puzzle create --title "..." --blocks ez-x   # this puzzle blocks ez-x
   ezer puzzle link --id ez-a --blocks ez-b         # make ez-a block ez-b
-  ezer puzzle unlink --id ez-a                     # remove block dependency
+  ezer puzzle unlink --id ez-a --blocks ez-b       # remove ez-a blocking ez-b
   ezer puzzle close --id ez-xxxxx               # mark resolved
   ezer puzzle reopen --id ez-xxxxx              # reopen puzzle
   ezer puzzle delete --id ez-xxxxx              # delete puzzle
@@ -91,8 +95,8 @@ Mark unknowns you can't resolve now. Don't get stuck - note it and move on.
 
 Dependency Pattern Example:
   Create a main task:       ezer puzzle create --title "Deploy to prod"
-  Create a blocker:         ezer puzzle create --title "Add tests" --blocks <main-id>
-  Or link later:            ezer puzzle link --id <test-id> --blocks <main-id>
+  Create a blocker:         ezer puzzle create --title "Add tests"
+  Link blocker to main:     ezer puzzle link --id <test-id> --blocks <main-id>
   View dependency tree:     ezer puzzle tree --id <main-id>
   Work on blockers first, then close them to unblock dependent tasks.
 
@@ -631,16 +635,37 @@ const main = defineCommand({
               description: "Puzzle ID to update",
               required: true,
             },
+            blocks: {
+              type: "string",
+              description: "Puzzle ID that this puzzle currently blocks",
+              required: true,
+            },
           },
           async run({ args }) {
             const id = args["id"];
-            if (typeof id !== "string") {
-              console.error("Error: --id is required");
+            const blocks = args["blocks"];
+            if (typeof id !== "string" || typeof blocks !== "string") {
+              console.error("Error: --id and --blocks are required");
               process.exit(1);
             }
             try {
+              // First verify the current blocks value matches
+              const filePath = join(MEMORY_DIR, `${id}.md`);
+              const content = await readFile(filePath, "utf-8");
+              const entry = parseMemoryFile(id, content);
+              
+              if (entry.type !== "puzzle") {
+                throw new Error(`${id} is not a puzzle`);
+              }
+              
+              if (entry.blocks !== blocks) {
+                throw new Error(
+                  `${id} does not block ${blocks}${entry.blocks ? ` (currently blocks ${entry.blocks})` : " (no block dependency set)"}`
+                );
+              }
+              
               await updatePuzzleBlocks(id, null);
-              console.log(`Unlinked ${id} (removed block dependency)`);
+              console.log(`Unlinked ${id} from ${blocks}`);
             } catch (error) {
               console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
               process.exit(1);
