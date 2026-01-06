@@ -11,6 +11,7 @@ import {
   replaceNotes,
   updateNote,
   updatePuzzleStatus,
+  updatePuzzleBlocks,
 } from "./lib/memory.ts";
 
 async function renderState(): Promise<string> {
@@ -76,6 +77,8 @@ Mark unknowns you can't resolve now. Don't get stuck - note it and move on.
 
   ezer puzzle create --title "..."                  # create puzzle
   ezer puzzle create --title "..." --blocks ez-x   # this puzzle blocks ez-x
+  ezer puzzle link --id ez-a --blocks ez-b         # make ez-a block ez-b
+  ezer puzzle unlink --id ez-a                     # remove block dependency
   ezer puzzle close --id ez-xxxxx               # mark resolved
   ezer puzzle reopen --id ez-xxxxx              # reopen puzzle
   ezer puzzle delete --id ez-xxxxx              # delete puzzle
@@ -85,6 +88,13 @@ Mark unknowns you can't resolve now. Don't get stuck - note it and move on.
   ezer puzzle list --closed                     # closed puzzles (by closed time)
   ezer puzzle tree --id ez-xxxxx                # show dependency tree
   ezer puzzle describe --ids ez-a,ez-b          # show puzzle details in XML
+
+Dependency Pattern Example:
+  Create a main task:       ezer puzzle create --title "Deploy to prod"
+  Create a blocker:         ezer puzzle create --title "Add tests" --blocks <main-id>
+  Or link later:            ezer puzzle link --id <test-id> --blocks <main-id>
+  View dependency tree:     ezer puzzle tree --id <main-id>
+  Work on blockers first, then close them to unblock dependent tasks.
 
 ### Memory Management
 When notes accumulate, consolidate related ones:
@@ -574,6 +584,66 @@ const main = defineCommand({
               if (index < ids.length - 1) {
                 console.log("");
               }
+            }
+          },
+        }),
+        link: defineCommand({
+          meta: {
+            name: "link",
+            description: "Link a puzzle to block another puzzle",
+          },
+          args: {
+            id: {
+              type: "string",
+              description: "Puzzle ID to update",
+              required: true,
+            },
+            blocks: {
+              type: "string",
+              description: "Puzzle ID that this puzzle should block",
+              required: true,
+            },
+          },
+          async run({ args }) {
+            const id = args["id"];
+            const blocks = args["blocks"];
+            if (typeof id !== "string" || typeof blocks !== "string") {
+              console.error("Error: --id and --blocks are required");
+              process.exit(1);
+            }
+            try {
+              await updatePuzzleBlocks(id, blocks);
+              console.log(`Linked ${id} to block ${blocks}`);
+            } catch (error) {
+              console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+              process.exit(1);
+            }
+          },
+        }),
+        unlink: defineCommand({
+          meta: {
+            name: "unlink",
+            description: "Remove block dependency from a puzzle",
+          },
+          args: {
+            id: {
+              type: "string",
+              description: "Puzzle ID to update",
+              required: true,
+            },
+          },
+          async run({ args }) {
+            const id = args["id"];
+            if (typeof id !== "string") {
+              console.error("Error: --id is required");
+              process.exit(1);
+            }
+            try {
+              await updatePuzzleBlocks(id, null);
+              console.log(`Unlinked ${id} (removed block dependency)`);
+            } catch (error) {
+              console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+              process.exit(1);
             }
           },
         }),
