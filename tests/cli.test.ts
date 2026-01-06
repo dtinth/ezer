@@ -29,6 +29,7 @@ function parseCreatedId(output: string): string {
   return match[1];
 }
 
+/** Extract list entries (lines with IDs) from CLI puzzle list output. */
 function parseListLines(stdout: string): string[] {
   return stdout
     .split("\n")
