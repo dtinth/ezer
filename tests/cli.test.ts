@@ -29,6 +29,12 @@ function parseCreatedId(output: string): string {
   return match[1];
 }
 
+function parseListLines(stdout: string): string[] {
+  return stdout
+    .split("\n")
+    .filter((line) => line.trim().length > 0 && line.includes(":"));
+}
+
 let cwd: string;
 
 beforeEach(async () => {
@@ -130,17 +136,13 @@ test("lists ready vs blocked puzzles based on dependencies", async () => {
 
   const ready = await runEzer(cwd, ["puzzle", "list", "--ready"]);
   expect(ready.exitCode).toBe(0);
-  const readyLines = ready.stdout
-    .split("\n")
-    .filter((line) => line.trim().length > 0 && line.includes(":"));
+  const readyLines = parseListLines(ready.stdout);
   expect(readyLines.some((line) => line.startsWith(`${blockerId}:`))).toBe(true);
   expect(readyLines.some((line) => line.startsWith(`${mainId}:`))).toBe(false);
 
   const blocked = await runEzer(cwd, ["puzzle", "list", "--blocked"]);
   expect(blocked.exitCode).toBe(0);
-  const blockedLines = blocked.stdout
-    .split("\n")
-    .filter((line) => line.trim().length > 0 && line.includes(":"));
+  const blockedLines = parseListLines(blocked.stdout);
   expect(blockedLines.some((line) => line.startsWith(`${mainId}:`))).toBe(true);
   expect(blockedLines.some((line) => line.startsWith(`${blockerId}:`))).toBe(false);
 
@@ -149,9 +151,7 @@ test("lists ready vs blocked puzzles based on dependencies", async () => {
 
   const readyAfterClose = await runEzer(cwd, ["puzzle", "list", "--ready"]);
   expect(readyAfterClose.exitCode).toBe(0);
-  const readyAfterCloseLines = readyAfterClose.stdout
-    .split("\n")
-    .filter((line) => line.trim().length > 0 && line.includes(":"));
+  const readyAfterCloseLines = parseListLines(readyAfterClose.stdout);
   expect(readyAfterCloseLines.some((line) => line.startsWith(`${mainId}:`))).toBe(true);
   expect(readyAfterCloseLines.some((line) => line.startsWith(`${blockerId}:`))).toBe(false);
 });
