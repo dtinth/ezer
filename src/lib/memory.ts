@@ -345,6 +345,19 @@ export async function replaceNotes(
   return createNote(content);
 }
 
+export async function clearFeedback(): Promise<number> {
+  const entries = await listMemoryEntries("feedback");
+  if (entries.length === 0) {
+    return 0;
+  }
+  const fs = await import("node:fs/promises");
+  for (const entry of entries) {
+    const filePath = join(MEMORY_DIR, `${entry.id}.md`);
+    await fs.unlink(filePath);
+  }
+  return entries.length;
+}
+
 export async function getPuzzleTree(rootId: string): Promise<string[]> {
   const entries = await listMemoryEntries("puzzle");
   const idMap = new Map<string, MemoryEntry>();

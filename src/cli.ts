@@ -3,6 +3,7 @@ import {
   createFeedback,
   createNote,
   createPuzzle,
+  clearFeedback,
   ID_PATTERN,
   deleteNote,
   listMemoryEntries,
@@ -604,6 +605,47 @@ const main = defineCommand({
             }
             const entry = await createFeedback(content);
             console.log(`Created ${entry.id}`);
+          },
+        }),
+        submit: defineCommand({
+          meta: {
+            name: "submit",
+            description: "Generate a GitHub issue link with collected feedback",
+          },
+          async run() {
+            const feedbacks = await listMemoryEntries("feedback");
+            if (feedbacks.length === 0) {
+              console.log("No feedback to submit.");
+              return;
+            }
+            const title = `Feedback from ezer (${feedbacks.length} item${
+              feedbacks.length === 1 ? "" : "s"
+            })`;
+            const body = feedbacks
+              .map(
+                (entry, index) =>
+                  `${index + 1}. ${entry.content}\n(id: ${entry.id}, created: ${entry.created})`
+              )
+              .join("\n\n");
+            const url = `https://github.com/dtinth/ezer/issues/new?title=${encodeURIComponent(
+              title
+            )}&body=${encodeURIComponent(body)}`;
+            console.log(url);
+          },
+        }),
+        clear: defineCommand({
+          meta: {
+            name: "clear",
+            description: "Remove all collected feedback entries",
+          },
+          async run() {
+            const removed = await clearFeedback();
+            if (removed === 0) {
+              console.log("No feedback to clear.");
+            } else {
+              const plural = removed === 1 ? "entry" : "entries";
+              console.log(`Cleared ${removed} feedback ${plural}.`);
+            }
           },
         }),
       },
