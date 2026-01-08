@@ -92,10 +92,17 @@ interface FrontMatter {
 
 function normalizeBlocks(blocks: string | string[] | undefined): string[] | undefined {
   if (Array.isArray(blocks)) {
-    return blocks.filter((id) => typeof id === "string" && id.length > 0);
+    const ids = blocks
+      .filter((id): id is string => typeof id === "string")
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0 && ID_PATTERN.test(id));
+    return ids.length > 0 ? ids : undefined;
   }
-  if (typeof blocks === "string" && blocks.length > 0) {
-    return [blocks];
+  if (typeof blocks === "string") {
+    const id = blocks.trim();
+    if (id.length > 0 && ID_PATTERN.test(id)) {
+      return [id];
+    }
   }
   return undefined;
 }
@@ -303,7 +310,11 @@ export async function updatePuzzleBlocks(
         entry.blocks = updated;
       }
     }
-  } else if (blocksId === null) {
+    await writeFile(filePath, serializeMemoryEntry(entry));
+    return entry;
+  }
+
+  if (blocksId === null) {
     delete entry.blocks;
   } else {
     // Verify the blocks ID exists and is a puzzle
@@ -319,7 +330,7 @@ export async function updatePuzzleBlocks(
     } else {
       const set = new Set(currentBlocks);
       set.add(blocksId);
-      entry.blocks = [...set];
+      entry.blocks = Array.from(set);
     }
   }
 
