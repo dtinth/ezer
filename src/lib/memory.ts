@@ -78,7 +78,7 @@ export interface MemoryEntry {
   // Puzzle-specific fields
   title?: string;
   status?: "open" | "closed";
-  blocks?: string; // ID of puzzle this blocks (parent depends on this)
+  blocks?: string[]; // IDs of puzzles this entry blocks (parents depend on this)
 }
 
 interface FrontMatter {
@@ -86,8 +86,18 @@ interface FrontMatter {
   created: string;
   title?: string;
   status?: string;
-  blocks?: string;
+  blocks?: string | string[];
   closedAt?: string;
+}
+
+function normalizeBlocks(blocks: string | string[] | undefined): string[] | undefined {
+  if (Array.isArray(blocks)) {
+    return blocks.filter((id) => typeof id === "string" && id.length > 0);
+  }
+  if (typeof blocks === "string" && blocks.length > 0) {
+    return [blocks];
+  }
+  return undefined;
 }
 
 export function parseMemoryFile(id: string, content: string): MemoryEntry {
@@ -113,10 +123,15 @@ export function parseMemoryFile(id: string, content: string): MemoryEntry {
   if (typeof frontMatter?.closedAt === "string") {
     entry.closedAt = frontMatter.closedAt;
   }
-  if (frontMatter?.blocks !== undefined) {
-    entry.blocks = frontMatter.blocks;
+  const blocks = normalizeBlocks(frontMatter?.blocks);
+  if (blocks?.length) {
+    entry.blocks = blocks;
   }
   return entry;
+}
+
+function getBlocksList(entry: Pick<MemoryEntry, "blocks">): string[] {
+  return entry.blocks ?? [];
 }
 
 function serializeMemoryEntry(entry: Omit<MemoryEntry, "id">): string {
@@ -133,7 +148,7 @@ function serializeMemoryEntry(entry: Omit<MemoryEntry, "id">): string {
   if (entry.closedAt) {
     frontMatter["closedAt"] = entry.closedAt;
   }
-  if (entry.blocks) {
+  if (entry.blocks?.length) {
     frontMatter["blocks"] = entry.blocks;
   }
   const yaml = stringifyYAML(frontMatter).trimEnd();
@@ -232,7 +247,7 @@ export async function createPuzzle(
     status: "open",
   };
   if (blocksId) {
-    entry.blocks = blocksId;
+    entry.blocks = [blocksId];
   }
 
   const filePath = join(MEMORY_DIR, `${id}.md`);
@@ -264,7 +279,8 @@ export async function updatePuzzleStatus(
 
 export async function updatePuzzleBlocks(
   id: string,
-  blocksId: string | null
+  blocksId: string | null,
+  action: "set" | "append" | "remove" = "set"
 ): Promise<MemoryEntry> {
   const filePath = join(MEMORY_DIR, `${id}.md`);
   const content = await readFile(filePath, "utf-8");
@@ -274,7 +290,20 @@ export async function updatePuzzleBlocks(
     throw new Error(`${id} is not a puzzle`);
   }
 
-  if (blocksId === null) {
+  const currentBlocks = getBlocksList(entry);
+
+  if (action === "remove") {
+    if (blocksId === null) {
+      delete entry.blocks;
+    } else {
+      const updated = currentBlocks.filter((blockId) => blockId !== blocksId);
+      if (updated.length === 0) {
+        delete entry.blocks;
+      } else {
+        entry.blocks = updated;
+      }
+    }
+  } else if (blocksId === null) {
     delete entry.blocks;
   } else {
     // Verify the blocks ID exists and is a puzzle
@@ -284,7 +313,14 @@ export async function updatePuzzleBlocks(
     if (blocksEntry.type !== "puzzle") {
       throw new Error(`${blocksId} is not a puzzle`);
     }
-    entry.blocks = blocksId;
+
+    if (action === "set") {
+      entry.blocks = [blocksId];
+    } else {
+      const set = new Set(currentBlocks);
+      set.add(blocksId);
+      entry.blocks = [...set];
+    }
   }
 
   await writeFile(filePath, serializeMemoryEntry(entry));
@@ -397,9 +433,10 @@ export async function getPuzzleTree(rootId: string): Promise<string[]> {
   while (current) {
     const puzzle = idMap.get(current);
     if (!puzzle || puzzle.type !== "puzzle") break;
-    if (puzzle.blocks) {
-      ancestors.unshift(puzzle.blocks);
-      current = puzzle.blocks;
+    const [primaryBlock] = getBlocksList(puzzle);
+    if (primaryBlock) {
+      ancestors.unshift(primaryBlock);
+      current = primaryBlock;
     } else {
       break;
     }
@@ -409,7 +446,7 @@ export async function getPuzzleTree(rootId: string): Promise<string[]> {
   const descendants: string[] = [];
   function findDescendants(puzzleId: string): void {
     for (const [id, puzzle] of idMap) {
-      if (puzzle.blocks === puzzleId) {
+      if (getBlocksList(puzzle).includes(puzzleId)) {
         descendants.push(id);
         findDescendants(id);
       }
@@ -436,8 +473,9 @@ export async function renderPuzzleTree(rootId: string): Promise<string> {
     const puzzle = idMap.get(current);
     if (!puzzle || puzzle.type !== "puzzle") break;
     ancestors.unshift({ id: current, puzzle });
-    if (puzzle.blocks) {
-      current = puzzle.blocks;
+    const [primaryBlock] = getBlocksList(puzzle);
+    if (primaryBlock) {
+      current = primaryBlock;
     } else {
       break;
     }
@@ -450,7 +488,7 @@ export async function renderPuzzleTree(rootId: string): Promise<string> {
   ): Array<{ id: string; puzzle: MemoryEntry; depth: number }> {
     const result: Array<{ id: string; puzzle: MemoryEntry; depth: number }> = [];
     for (const [id, puzzle] of idMap) {
-      if (puzzle.blocks === puzzleId) {
+      if (getBlocksList(puzzle).includes(puzzleId)) {
         result.push({ id, puzzle, depth });
         result.push(...findDescendants(id, depth + 1));
       }

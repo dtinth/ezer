@@ -35,7 +35,10 @@ async function renderState(): Promise<string> {
   if (openPuzzles.length > 0) {
     lines.push("### Open Puzzles");
     for (const puzzle of openPuzzles) {
-      const blocksInfo = puzzle.blocks ? ` (blocks ${puzzle.blocks})` : "";
+      const blocksInfo =
+        puzzle.blocks && puzzle.blocks.length > 0
+          ? ` (blocks ${puzzle.blocks.join(", ")})`
+          : "";
       lines.push(`- ${puzzle.id}: ${puzzle.title}${blocksInfo}`);
     }
   }
@@ -451,9 +454,11 @@ const main = defineCommand({
             const blockers = new Map<string, typeof openPuzzles>();
             for (const puzzle of openPuzzles) {
               if (!puzzle.blocks) continue;
-              const list = blockers.get(puzzle.blocks) ?? [];
-              list.push(puzzle);
-              blockers.set(puzzle.blocks, list);
+              for (const target of puzzle.blocks) {
+                const list = blockers.get(target) ?? [];
+                list.push(puzzle);
+                blockers.set(target, list);
+              }
             }
 
             const getBlockingPuzzles = (puzzleId: string): typeof openPuzzles =>
@@ -491,7 +496,10 @@ const main = defineCommand({
             }
 
             for (const puzzle of toShow) {
-              const blocksInfo = puzzle.blocks ? ` (blocks ${puzzle.blocks})` : "";
+              const blocksInfo =
+                puzzle.blocks && puzzle.blocks.length > 0
+                  ? ` (blocks ${puzzle.blocks.join(", ")})`
+                  : "";
               const status = getStatus(puzzle);
               const detail =
                 status === "ready"
@@ -616,7 +624,7 @@ const main = defineCommand({
               process.exit(1);
             }
             try {
-              await updatePuzzleBlocks(id, blocks);
+              await updatePuzzleBlocks(id, blocks, "append");
               console.log(`Linked ${id} to block ${blocks}`);
             } catch (error) {
               console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
@@ -658,13 +666,16 @@ const main = defineCommand({
                 throw new Error(`${id} is not a puzzle`);
               }
               
-              if (entry.blocks !== blocks) {
-                throw new Error(
-                  `${id} does not block ${blocks}${entry.blocks ? ` (currently blocks ${entry.blocks})` : " (no block dependency set)"}`
-                );
+              const currentBlocks = entry.blocks ?? [];
+              if (!currentBlocks.includes(blocks)) {
+                const currentText =
+                  currentBlocks.length > 0
+                    ? ` (currently blocks ${currentBlocks.join(", ")})`
+                    : " (no block dependency set)";
+                throw new Error(`${id} does not block ${blocks}${currentText}`);
               }
               
-              await updatePuzzleBlocks(id, null);
+              await updatePuzzleBlocks(id, blocks, "remove");
               console.log(`Unlinked ${id} from ${blocks}`);
             } catch (error) {
               console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
