@@ -2,7 +2,7 @@ import { mkdtemp, readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test, beforeEach } from "bun:test";
-import { ID_PATTERN } from "../src/lib/memory.ts";
+import { ID_PATTERN, parseMemoryFile } from "../src/lib/memory.ts";
 
 const BIN_PATH = join(process.cwd(), "bin", "ezer");
 
@@ -178,6 +178,51 @@ test("lists puzzles with statuses, including closed filter", async () => {
   const closedTimeValues = closedTimes.map((time) => new Date(time).getTime());
   const sortedClosedTimes = [...closedTimeValues].sort((a, b) => b - a);
   expect(closedTimeValues).toEqual(sortedClosedTimes);
+});
+
+test("linking a puzzle to multiple targets retains all block relationships", async () => {
+  const main = await runEzer(cwd, ["puzzle", "create", "--title", "Main"]);
+  const mainId = parseCreatedId(main.stdout);
+
+  const setup = await runEzer(cwd, ["puzzle", "create", "--title", "Setup"]);
+  const setupId = parseCreatedId(setup.stdout);
+
+  const nashville = await runEzer(cwd, ["puzzle", "create", "--title", "Nashville"]);
+  const nashvilleId = parseCreatedId(nashville.stdout);
+
+  const queue = await runEzer(cwd, ["puzzle", "create", "--title", "Queue"]);
+  const queueId = parseCreatedId(queue.stdout);
+
+  await runEzer(cwd, ["puzzle", "link", "--id", setupId, "--blocks", nashvilleId]);
+  await runEzer(cwd, ["puzzle", "link", "--id", setupId, "--blocks", queueId]);
+  await runEzer(cwd, ["puzzle", "link", "--id", nashvilleId, "--blocks", mainId]);
+  await runEzer(cwd, ["puzzle", "link", "--id", queueId, "--blocks", mainId]);
+
+  const ready = await runEzer(cwd, ["puzzle", "list", "--ready"]);
+  const readyLines = parseListLines(ready.stdout);
+  expect(readyLines).toHaveLength(1);
+  expect(readyLines.some((line) => line.startsWith(`${setupId} [ready]:`))).toBe(true);
+
+  const blocked = await runEzer(cwd, ["puzzle", "list", "--blocked"]);
+  const blockedLines = parseListLines(blocked.stdout);
+
+  const nashvilleLine = blockedLines.find((line) => line.startsWith(`${nashvilleId} [blocked]:`));
+  expect(nashvilleLine).toBeDefined();
+  expect(nashvilleLine).toContain(setupId);
+
+  const queueLine = blockedLines.find((line) => line.startsWith(`${queueId} [blocked]:`));
+  expect(queueLine).toBeDefined();
+  expect(queueLine).toContain(setupId);
+
+  const mainLine = blockedLines.find((line) => line.startsWith(`${mainId} [blocked]:`));
+  expect(mainLine).toBeDefined();
+  expect(mainLine).toContain(nashvilleId);
+  expect(mainLine).toContain(queueId);
+
+  const setupFile = await readFile(join(cwd, ".ezer", "memory", `${setupId}.md`), "utf-8");
+  const setupEntry = parseMemoryFile(setupId, setupFile);
+  expect(setupEntry.blocks?.length).toBe(2);
+  expect(setupEntry.blocks).toEqual(expect.arrayContaining([nashvilleId, queueId]));
 });
 
 test("can link and unlink puzzles with block dependencies", async () => {
