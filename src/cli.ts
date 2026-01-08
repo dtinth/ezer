@@ -53,6 +53,36 @@ async function renderState(): Promise<string> {
   return lines.join("\n");
 }
 
+async function readStdin(): Promise<string> {
+  if (process.stdin.isTTY) {
+    return "";
+  }
+  return new Promise((resolve, reject) => {
+    process.stdin.setEncoding("utf8");
+    let data = "";
+    const onData = (chunk: string | Buffer) => {
+      data += chunk.toString();
+    };
+    const onEnd = () => {
+      cleanup();
+      resolve(data);
+    };
+    const onError = (error: Error) => {
+      cleanup();
+      reject(error);
+    };
+    const cleanup = () => {
+      process.stdin.off("data", onData);
+      process.stdin.off("end", onEnd);
+      process.stdin.off("error", onError);
+    };
+    process.stdin.on("data", onData);
+    process.stdin.once("end", onEnd);
+    process.stdin.once("error", onError);
+    process.stdin.resume();
+  });
+}
+
 async function getPrimingText(): Promise<string> {
   const state = await renderState();
 
@@ -74,8 +104,11 @@ Record decisions, discoveries, or context for future sessions.
   ezer note delete --id ez-xxxxx                # delete entry
   ezer note replace --ids ez-a,ez-b --content "..."  # replace many with one
   ezer note list                                # list all notes
+  cat <<'EOF' | ezer note create                # read note content from stdin
+  ... multi-line note content ...
+  EOF
 
-Good notes: decisions made, patterns discovered, important file locations.
+  Good notes: decisions made, patterns discovered, important file locations.
 
 ### Puzzles
 Mark unknowns you can't resolve now. Don't get stuck - note it and move on.
@@ -181,14 +214,17 @@ const main = defineCommand({
           args: {
             content: {
               type: "string",
-              description: "Note content",
-              required: true,
+              description: "Note content (or read from stdin)",
             },
           },
           async run({ args }) {
-            const content = args["content"];
-            if (typeof content !== "string") {
-              console.error("Error: --content is required");
+            const argContent = args["content"];
+            const usingStdin = typeof argContent !== "string";
+            const content = usingStdin ? await readStdin() : argContent;
+            if (usingStdin && content.trim().length === 0) {
+              console.error(
+                "Error: Note content is required. Provide --content or pipe content to stdin (no stdin input received)."
+              );
               process.exit(1);
             }
             const entry = await createNote(content);
