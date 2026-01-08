@@ -6,12 +6,24 @@ import { ID_PATTERN, parseMemoryFile } from "../src/lib/memory.ts";
 
 const BIN_PATH = join(process.cwd(), "bin", "ezer");
 
-async function runEzer(cwd: string, args: string[] = []) {
+async function runEzer(
+  cwd: string,
+  args: string[] = [],
+  options?: {
+    stdin?: string;
+  }
+) {
+  const stdinOption = options?.stdin === undefined ? "inherit" : "pipe";
   const proc = Bun.spawn(["bun", BIN_PATH, ...args], {
     cwd,
     stdout: "pipe",
     stderr: "pipe",
+    stdin: stdinOption,
   });
+  if (options?.stdin) {
+    proc.stdin?.write(options.stdin);
+    proc.stdin?.end();
+  }
   const [stdout, stderr, exitCode] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
@@ -49,6 +61,7 @@ test("shows priming text when no command is provided", async () => {
   expect(result.stderr).toBe("");
   expect(result.stdout).toContain("=== EZER ===");
   expect(result.stdout).toContain("Commands");
+  expect(result.stdout).toContain("cat <<'EOF' | ezer note create");
 });
 
 test("can create and list notes", async () => {
@@ -67,6 +80,18 @@ test("can create and list notes", async () => {
   expect(files).toContain(`${id}.md`);
   const fileContent = await readFile(join(cwd, ".ezer", "memory", `${id}.md`), "utf-8");
   expect(fileContent).toContain("hello world");
+});
+
+test("can create note from stdin", async () => {
+  const noteContent = "line 1\nline 2\n";
+  const create = await runEzer(cwd, ["note", "create"], { stdin: noteContent });
+  expect(create.exitCode).toBe(0);
+  expect(create.stderr).toBe("");
+
+  const id = parseCreatedId(create.stdout);
+
+  const fileContent = await readFile(join(cwd, ".ezer", "memory", `${id}.md`), "utf-8");
+  expect(fileContent).toContain(noteContent);
 });
 
 test("renders notes as XML in status output", async () => {
