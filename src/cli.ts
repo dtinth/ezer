@@ -129,10 +129,11 @@ Mark unknowns you can't resolve now. Don't get stuck - note it and move on.
   ezer puzzle tree --id ez-xxxxx                # show dependency tree
   ezer puzzle describe --ids ez-a,ez-b          # show puzzle details in XML
 
-Dependency Pattern Example:
+  Dependency Pattern Example:
   Create a main task:       ezer puzzle create --title "Deploy to prod"
   Create a blocker:         ezer puzzle create --title "Add tests"
   Link blocker to main:     ezer puzzle link --id <test-id> --blocks <main-id>
+  Link multiple blockers:   ezer puzzle link --id <setup-id> --blocks <qa-id> && ezer puzzle link --id <setup-id> --blocks <deploy-id>
   View dependency tree:     ezer puzzle tree --id <main-id>
   Work on blockers first, then close them to unblock dependent tasks.
 
@@ -340,7 +341,9 @@ const main = defineCommand({
               return;
             }
             for (const note of entries) {
-              console.log(`${note.id}: ${note.content}`);
+              console.log(`<note id="${note.id}">`);
+              console.log(note.content);
+              console.log("</note>");
             }
           },
         }),
@@ -385,6 +388,10 @@ const main = defineCommand({
             if (blocks) {
               console.log(`  Blocks: ${blocks}`);
             }
+            console.log(`Hint: Close when done: ezer puzzle close --id ${entry.id}`);
+            console.log(
+              `Hint: Link blockers with: ezer puzzle link --id ${entry.id} --blocks <puzzle-id>`
+            );
           },
         }),
         close: defineCommand({
@@ -407,6 +414,7 @@ const main = defineCommand({
             }
             await updatePuzzleStatus(id, "closed");
             console.log(`Closed ${id}`);
+            console.log(`Hint: Reopen with: ezer puzzle reopen --id ${id}`);
           },
         }),
         reopen: defineCommand({
@@ -662,6 +670,10 @@ const main = defineCommand({
             try {
               await updatePuzzleBlocks(id, blocks, "append");
               console.log(`Linked ${id} to block ${blocks}`);
+              console.log(
+                `Hint: Undo with: ezer puzzle unlink --id ${id} --blocks ${blocks}`
+              );
+              console.log(`Hint: View tree: ezer puzzle tree --id ${blocks}`);
             } catch (error) {
               console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
               process.exit(1);
