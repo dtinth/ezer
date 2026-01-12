@@ -14,6 +14,8 @@ bun install
 ln -s $PWD/bin/ezer ~/.local/bin/ezer
 ```
 
+Then in Claude Code, open `/permissions` and add an user-scoped Allow rule for `Bash(ezer:*)`.
+
 ## Usage
 
 Run at the start of each session to load context and instructions:
