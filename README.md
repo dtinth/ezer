@@ -2,10 +2,16 @@
 
 A robot companion CLI for AI agents. Maintains context and memory across sessions using git-backed storage.
 
-## Install
+## Set up
+
+`ezer` is in very early dogfooding stage, so I did not publish it to npm or binary packages yet, as I don't feel that it's ready for wide usage yet (it's just an experiment). So for now, `ezer` has to be installed manually:
 
 ```bash
+git clone https://github.com/dtinth/ezer ~/ezer
+cd ~/ezer
+mise trust
 bun install
+ln -s $PWD/bin/ezer ~/.local/bin/ezer
 ```
 
 ## Usage
