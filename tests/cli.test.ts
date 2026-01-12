@@ -62,6 +62,7 @@ test("shows priming text when no command is provided", async () => {
   expect(result.stdout).toContain("=== EZER ===");
   expect(result.stdout).toContain("Commands");
   expect(result.stdout).toContain("cat <<'EOF' | ezer note create");
+  expect(result.stdout).toContain("&& ezer puzzle link --id <setup-id> --blocks <deploy-id>");
 });
 
 test("can create and list notes", async () => {
@@ -73,8 +74,9 @@ test("can create and list notes", async () => {
 
   const list = await runEzer(cwd, ["note", "list"]);
   expect(list.exitCode).toBe(0);
-  expect(list.stdout).toContain(id);
+  expect(list.stdout).toContain(`<note id="${id}">`);
   expect(list.stdout).toContain("hello world");
+  expect(list.stdout).toContain("</note>");
 
   const files = await readdir(join(cwd, ".ezer", "memory"));
   expect(files).toContain(`${id}.md`);
@@ -116,6 +118,12 @@ test("describes puzzles in XML and suggests usage from list/tree", async () => {
     "first details",
   ]);
   const id1 = parseCreatedId(create1.stdout);
+  expect(create1.stdout).toContain(
+    `Hint: Close when done: ezer puzzle close --id ${id1}`
+  );
+  expect(create1.stdout).toContain(
+    `Hint: Link blockers with: ezer puzzle link --id ${id1} --blocks <puzzle-id>`
+  );
 
   const create2 = await runEzer(cwd, [
     "puzzle",
@@ -181,6 +189,9 @@ test("lists puzzles with statuses, including closed filter", async () => {
 
   const closeBlocker = await runEzer(cwd, ["puzzle", "close", "--id", blockerId]);
   expect(closeBlocker.exitCode).toBe(0);
+  expect(closeBlocker.stdout).toContain(
+    `Hint: Reopen with: ezer puzzle reopen --id ${blockerId}`
+  );
 
   const readyAfterClose = await runEzer(cwd, ["puzzle", "list", "--ready"]);
   expect(readyAfterClose.exitCode).toBe(0);
@@ -269,6 +280,10 @@ test("can link and unlink puzzles with block dependencies", async () => {
   expect(link.exitCode).toBe(0);
   expect(link.stderr).toBe("");
   expect(link.stdout).toContain(`Linked ${blockerId} to block ${mainId}`);
+  expect(link.stdout).toContain(
+    `Hint: Undo with: ezer puzzle unlink --id ${blockerId} --blocks ${mainId}`
+  );
+  expect(link.stdout).toContain(`Hint: View tree: ezer puzzle tree --id ${mainId}`);
 
   // Now main should be blocked, blocker should be ready
   const blockedAfterLink = await runEzer(cwd, ["puzzle", "list", "--blocked"]);
